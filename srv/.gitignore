@@ -1,0 +1,11 @@
+# Ignore all executables
+*.out
+*.exe
+*.bin
+*.o
+*.a
+*.so
+*.dll
+
+# Ignore the server executable
+server
