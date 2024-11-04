@@ -4,7 +4,7 @@ import sys
 import socket
 import threading
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt
 
@@ -112,8 +112,14 @@ class SimpleGUI(QWidget):
     def update_label(self, text):
         self.label.setText(text)
 
-    def _quit(self):
-        self.parent.quit()
+    def closeEvent(self, event):
+        reply = QMessageBox.question(self, 'Message',
+                                     "Are you sure you want to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            event.accept()
+        else:
+            event.ignore()
 
 
 def connect_to_host(hostname, port):
