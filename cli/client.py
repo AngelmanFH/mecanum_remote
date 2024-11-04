@@ -4,12 +4,13 @@ import sys
 import socket
 import threading
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt
 
 # srv_addr = '192.168.43.30'
 srv_addr = '10.0.0.14'
+def_hosts = ['10.0.0.14', '192.168.43.30']
 
 class SimpleGUI(QWidget):
     def __init__(self, client_socket):
@@ -35,6 +36,11 @@ class SimpleGUI(QWidget):
         self.combo_box.addItems(['Option 1', 'Option 2', 'Option 3'])
         self.combo_box.currentTextChanged.connect(self.on_combobox_changed)
         layout.addWidget(self.combo_box)
+
+        self.quitme = QPushButton("QUIT")
+        self.quitme.clicked.connect(QApplication.quit)
+        self.quitme.setStyleSheet("font-size: 24px; color: orange;")
+        layout.addWidget(self.quitme)
 
         self.setLayout(layout)
 
@@ -106,21 +112,71 @@ class SimpleGUI(QWidget):
     def update_label(self, text):
         self.label.setText(text)
 
-def main():
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        client_socket.connect((srv_addr, 54000))
-    except socket.error as e:
-        print(f"Failed to connect: {e}")
-        #return
-        
-        
-    app = QApplication(sys.argv)
-    gui = SimpleGUI(client_socket)
-    gui.show()
-    app.exec()
+    def _quit(self):
+        self.parent.quit()
 
-    client_socket.close()
+
+def connect_to_host(hostname, port):
+    try:
+        # Get all IP addresses associated with the hostname
+        host_info = socket.gethostbyname_ex(hostname)
+        ip_addresses = host_info[2]
+        print(ip_addresses)
+
+    except socket.gaierror as e:
+        print(f"Error resolving hostname {hostname}: {e}\nTrying default IP-Addresses...")
+        ip_addresses = def_hosts
+
+    for ip in ip_addresses:
+        # try:
+        # Create a socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)  # Set a timeout for the connection attem               pt
+        try:
+            # Attempt to connect to the IP address
+            sock.connect((ip, port))
+            print(f"Successfully connected to {hostname} ({ip}) on port {port}")
+            return sock  # Return the connected socket
+
+        except socket.error as e:
+            print(f"Failed to connect to {ip}: {e}")
+            sock.close()
+
+        #finally:
+            #sock.close()
+
+    print(f"Could not connect to any IP addresses for {hostname}")
+    return None
+
+
+def main():
+    # hostname = 'anakin'
+    # ip_address = socket.gethostbyname(hostname)
+    # print("IP Address:", ip_address)
+    hostname = 'anakin'
+    port = 54000
+    client_socket = connect_to_host(hostname, port)
+
+
+    # client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # try:
+    #     client_socket.connect((srv_addr, 54000))
+    # except socket.error as e:
+    #     print(f"Failed to connect: {e}")
+    #     #return
+        
+    if client_socket:
+        app = QApplication(sys.argv)
+        gui = SimpleGUI(client_socket)
+        gui.show()
+        app.exec()
+
+        client_socket.close()
+        return 0
+    else:
+        print(f"Could not connect to host {hostname}")
+        return -1
 
 if __name__ == '__main__':
     main()
+    # sys.exit(main())
