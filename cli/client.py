@@ -29,8 +29,8 @@ class SimpleGUI(QWidget):
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
 
-        self.joy = DraggableCircleWidget(lambda x, y: print(x, y))
-        layout.addWidget(self.joy)
+        #self.joy = DraggableCircleWidget(lambda x, y: print(f"x: {x}, y:{y}"))
+        #layout.addWidget(self.joy)
 
         self.text_field = QLineEdit()
         self.text_field.textChanged.connect(self.on_text_changed)
