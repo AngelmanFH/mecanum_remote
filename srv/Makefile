@@ -13,6 +13,9 @@ OBJS = $(SRCS:.cpp=.o)
 # Define the compiler flags
 CXXFLAGS = -Wall -g
 
+# Default target
+all: $(TARGET)
+
 # Rule to build the target executable
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
@@ -26,4 +29,4 @@ clean:
 	rm -f $(OBJS) $(TARGET)
 
 # Phony targets
-.PHONY: clean
+.PHONY: all clean
