@@ -7,7 +7,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt
-from joystick_200x200 import DraggableCircleWidget
+from joystick_flexsize import DraggableCircleWidget
 
 # srv_addr = '192.168.43.30'
 srv_addr = '10.0.0.14'
