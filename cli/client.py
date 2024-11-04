@@ -7,6 +7,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt
+from joystick import DraggableCircleWidget
 
 # srv_addr = '192.168.43.30'
 srv_addr = '10.0.0.14'
@@ -27,6 +28,9 @@ class SimpleGUI(QWidget):
         self.label.setStyleSheet("font-size: 24px; color: white;")
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
+
+        self.joy = DraggableCircleWidget(lambda x, y: print(x, y))
+        layout.addWidget(self.joy)
 
         self.text_field = QLineEdit()
         self.text_field.textChanged.connect(self.on_text_changed)
