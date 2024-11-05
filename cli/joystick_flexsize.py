@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, QRectF, QPointF, QTimer
 
 
 class DraggableCircleWidget(QWidget):
-    def __init__(self, position_callback, size=300):
+    def __init__(self, position_callback, size=400):
         super().__init__()
         self.setFixedSize(size, size)
         self.circle_radius = size // 10

@@ -25,7 +25,7 @@ class SimpleGUI(QWidget):
         layout = QVBoxLayout()
 
         self.label = QLabel('This is a Title')
-        self.label.setStyleSheet("font-size: 24px; color: white;")
+        self.label.setStyleSheet("font-size: 24px; color: red;")
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
 
