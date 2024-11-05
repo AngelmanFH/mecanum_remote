@@ -11,7 +11,7 @@ from joystick_flexsize import DraggableCircleWidget
 
 # srv_addr = '192.168.43.30'
 srv_addr = '10.0.0.14'
-def_hosts = ['10.0.0.14', '192.168.43.30']
+def_hosts = ['10.0.0.14', '192.168.43.32']
 
 class SimpleGUI(QWidget):
     def __init__(self, client_socket):
