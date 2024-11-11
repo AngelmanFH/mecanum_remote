@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import struct
 import sys
 import socket
 import threading
@@ -29,7 +30,8 @@ class SimpleGUI(QWidget):
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
 
-        self.joy = DraggableCircleWidget(lambda x, y: print(f"x: {x}, y:{y}"))
+        # self.joy = DraggableCircleWidget(lambda x, y: print(f"x: {x}, y:{y}"))
+        self.joy = DraggableCircleWidget(self.send_position_tcp)
         layout.addWidget(self.joy)
 
         self.text_field = QLineEdit()
@@ -124,6 +126,17 @@ class SimpleGUI(QWidget):
             event.accept()
         else:
             event.ignore()
+
+    def send_position_tcp(self, x, y):
+        # Prepare the data
+        prefix = b'\x01'  # Example prefix
+        data = struct.pack('!BIff', prefix[0], 8, x, y)
+
+        # Send the data
+        try:
+            self.client_socket.sendall(data)
+        except socket.error as e:
+            self.update_label(f"Connection lost: {e}")
 
 
 def connect_to_host(hostname, port):

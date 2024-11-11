@@ -80,11 +80,13 @@ class DraggableCircleWidget(QWidget):
         self.position_callback(x, y)
 
 
-def position_callback(x, y):
-    print(f"Circle position: x={x}, y={y}")
+
 
 
 if __name__ == "__main__":
+    def position_callback(x, y):
+        print(f"Circle position: x={x}, y={y}")
+
     app = QApplication([])
     widget = DraggableCircleWidget(position_callback, size=300)
     widget.show()
