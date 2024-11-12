@@ -82,11 +82,11 @@ void handle_client(int client_socket) {
                     std::cout << "Received: " << buffer << std::endl;
                 }
 
-                // Increment the count and send a message to the client
-                count++;
-                std::string message = "Server says: Hello, GUI! Count: " + std::to_string(count);
-                send(client_socket, message.c_str(), message.size(), 0);
             }
+            // Increment the count and send a message to the client
+            count++;
+            std::string message = "Server says: Hello, GUI! Count: " + std::to_string(count);
+            send(client_socket, message.c_str(), message.size(), 0);
         }
     }
     close(client_socket);
