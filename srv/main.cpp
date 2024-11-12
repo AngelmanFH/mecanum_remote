@@ -8,6 +8,38 @@
 #include <chrono>
 #include <thread>
 
+// Function to convert network byte order float to host byte order
+float ntohf(uint32_t net) {
+    uint32_t host = ntohl(net);
+    return *reinterpret_cast<float*>(&host);
+}
+
+void unpack_data(char *buf) {
+    // Unpack prefix
+    uint8_t prefix = buf[0];
+
+    // Unpack size
+    uint32_t size;
+    std::memcpy(&size, buf + 1, sizeof(size));
+    size = ntohl(size);
+
+    // Unpack x coordinate
+    uint32_t x_net;
+    std::memcpy(&x_net, buf + 5, sizeof(x_net));
+    float x = ntohf(x_net);
+
+    // Unpack y coordinate
+    uint32_t y_net;
+    std::memcpy(&y_net, buf + 9, sizeof(y_net));
+    float y = ntohf(y_net);
+
+    // Print the unpacked data
+    std::cout << "Prefix: " << static_cast<int>(prefix) << std::endl;
+    std::cout << "Size: " << size << std::endl;
+    std::cout << "X: " << x << std::endl;
+    std::cout << "Y: " << y << std::endl;
+}
+
 void handle_client(int client_socket) {
     char buffer[1024];
     int count = 0;
@@ -39,17 +71,22 @@ void handle_client(int client_socket) {
                 break;
             }
         } else {
-            std::string received_message(buffer);
-            if (received_message == "KEEP_ALIVE") {
-                last_keep_alive = std::chrono::steady_clock::now();
+            if (buffer[0] == 0x01) {
+                // position message because of magic cookie 0x01
+                unpack_data(buffer);
             } else {
-                std::cout << "Received: " << buffer << std::endl;
-            }
+                std::string received_message(buffer);
+                if (received_message == "KEEP_ALIVE") {
+                    last_keep_alive = std::chrono::steady_clock::now();
+                } else {
+                    std::cout << "Received: " << buffer << std::endl;
+                }
 
-            // Increment the count and send a message to the client
-            count++;
-            std::string message = "Server says: Hello, GUI! Count: " + std::to_string(count);
-            send(client_socket, message.c_str(), message.size(), 0);
+                // Increment the count and send a message to the client
+                count++;
+                std::string message = "Server says: Hello, GUI! Count: " + std::to_string(count);
+                send(client_socket, message.c_str(), message.size(), 0);
+            }
         }
     }
     close(client_socket);
