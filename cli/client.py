@@ -20,8 +20,8 @@ class SimpleGUI(QWidget):
 
         self.client_socket = client_socket
 
-        self.setWindowTitle("Pop-Art GUI")
-        self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("MECANUM GUI")
+        self.setGeometry(100, 100, 1200, 540)
 
         layout = QVBoxLayout()
 
