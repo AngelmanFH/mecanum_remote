@@ -7,7 +7,7 @@ import threading
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
 from PySide6.QtGui import QPixmap, QPainter
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Slot
 from joystick_flexsize import DraggableCircleWidget
 
 # srv_addr = '192.168.43.30'
@@ -31,8 +31,9 @@ class SimpleGUI(QWidget):
         layout.addWidget(self.label)
 
         # self.joy = DraggableCircleWidget(lambda x, y: print(f"x: {x}, y:{y}"))
-        self.joy = DraggableCircleWidget(self.send_position_tcp)
+        self.joy = DraggableCircleWidget()
         layout.addWidget(self.joy)
+        self.joy.positionChanged.connect(self.send_position_tcp)
 
         self.text_field = QLineEdit()
         self.text_field.textChanged.connect(self.on_text_changed)
@@ -51,7 +52,7 @@ class SimpleGUI(QWidget):
         self.setLayout(layout)
 
         # Hintergrundbild laden
-        self.background_pixmap = QPixmap("pop_art_image.jpg")  # Pfad zum Pop-Art-Bild
+        self.background_pixmap = QPixmap("mecanum_gui.png")  # Pfad zum Pop-Art-Bild
         
         # Start a thread to listen for messages from the server
         self.listening_thread = threading.Thread(target=self.listen_for_messages, daemon=True)
@@ -127,6 +128,7 @@ class SimpleGUI(QWidget):
         else:
             event.ignore()
 
+    @Slot(float, float)
     def send_position_tcp(self, x, y):
         # Prepare the data
         prefix = b'\x01'  # Example prefix
