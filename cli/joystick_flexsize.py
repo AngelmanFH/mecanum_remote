@@ -15,7 +15,7 @@ class DraggableCircleWidget(QWidget):
         self.drag_offset = QPointF(0, 0)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.move_towards_center)
-        self.square_margin = size // 6
+        self.square_margin = size // 50
         self.square_size = size - 2 * self.square_margin
 
     def paintEvent(self, event):

@@ -4,9 +4,9 @@ from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, Slot
 
 
 class StopGoButton(QWidget):
-    clicked = Signal()
-    def __init__(self, radius=200):
-        super().__init__()
+    clicked = Signal(str)
+    def __init__(self, radius=200, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.setFixedSize(radius * 2 + 2, radius * 2 + 2)
         self.circle_radius = radius
         self.circle_center = QPointF(self.width() / 2, self.height() / 2)
@@ -18,6 +18,7 @@ class StopGoButton(QWidget):
         self.colors_notclicked = [QColor(255, 50, 50), QColor(55, 0, 0)]
         self.colors_clicked = [QColor(255, 100, 100), QColor(125, 0, 0)]
         self.text = "STOP"
+        self.whattoemit = "off"
 
     def set_colors(self, notclicked: list, clicked: list):
         self.colors_notclicked = notclicked
@@ -82,7 +83,7 @@ class StopGoButton(QWidget):
         if self.is_inside_circle(event.position()):
             self.mousedown = True
             self.update()
-            self.clicked.emit()
+            self.clicked.emit(self.whattoemit)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if self.is_inside_circle(event.position()):
@@ -94,21 +95,22 @@ class StopButton(StopGoButton):
     pass
 
 class GoButton(StopGoButton):
-    def __init__(self, radius=200):
-        super().__init__(radius)
+    def __init__(self, radius=200, *args, **kwargs):
+        super().__init__(radius, *args, **kwargs)
         # make a green GO-Button
         self.colors_notclicked = [QColor(50, 255, 50), QColor(0, 55, 0)]
         self.colors_clicked = [QColor(100, 255, 100), QColor(0, 125, 0)]
         self.text = "GO"
+        self.whattoemit = "on"
 
 if __name__ == "__main__":
 
-    @Slot()
-    def clicked_slot():
-        print("clicked!")
+    @Slot(str)
+    def clicked_slot(str):
+        print(f"clicked: {str}")
 
     app = QApplication([])
-    widget = GoButton(100)
+    widget = StopButton(100)
     widget.clicked.connect(clicked_slot)
     widget.show()
     app.exec()
