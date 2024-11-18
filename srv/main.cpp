@@ -14,7 +14,7 @@ float ntohf(uint32_t net) {
     return *reinterpret_cast<float*>(&host);
 }
 
-void unpack_data(char *buf) {
+void unpack_pos_data(char *buf) {
     // Unpack prefix
     uint8_t prefix = buf[0];
 
@@ -34,10 +34,32 @@ void unpack_data(char *buf) {
     float y = ntohf(y_net);
 
     // Print the unpacked data
+    std::cout << "joystick position message received!" << std::endl;
     std::cout << "Prefix: " << static_cast<int>(prefix) << std::endl;
     std::cout << "Size: " << size << std::endl;
     std::cout << "X: " << x << std::endl;
     std::cout << "Y: " << y << std::endl;
+}
+
+void unpack_motctrl_data(char *buf) {
+    // Unpack prefix
+    uint8_t prefix = buf[0];
+
+    // Unpack size
+    uint32_t size;
+    std::memcpy(&size, buf + 1, sizeof(size));
+    size = ntohl(size);
+
+    // Unpack x coordinate
+    uint8_t action;
+    std::memcpy(&action, buf + 5, sizeof(action));
+    bool doit = action;
+
+    // Print the unpacked data
+    std::cout << "motctrl message received!" << std::endl;
+    std::cout << "Prefix: " << static_cast<int>(prefix) << std::endl;
+    std::cout << "Size: " << size << std::endl;
+    std::cout << "Run motor? : " << (doit ? "True":"False") << std::endl;
 }
 
 void handle_client(int client_socket) {
@@ -73,7 +95,11 @@ void handle_client(int client_socket) {
         } else {
             if (buffer[0] == 0x01) {
                 // position message because of magic cookie 0x01
-                unpack_data(buffer);
+                unpack_pos_data(buffer);
+            }
+            else if (buffer[0] == 0x02) {
+                // position message because of magic cookie 0x01
+                unpack_motctrl_data(buffer);
             } else {
                 std::string received_message(buffer);
                 if (received_message == "KEEP_ALIVE") {
