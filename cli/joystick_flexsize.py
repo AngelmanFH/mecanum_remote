@@ -1,10 +1,12 @@
 from PySide6.QtWidgets import QApplication, QWidget
 from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QMouseEvent, QRadialGradient
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer
+from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, Slot
 
 
 class DraggableCircleWidget(QWidget):
-    def __init__(self, position_callback, size=400):
+    positionChanged = Signal(float, float)  # Define a custom signal
+
+    def __init__(self, size=400):
         super().__init__()
         self.setFixedSize(size, size)
         self.circle_radius = size // 10
@@ -13,8 +15,7 @@ class DraggableCircleWidget(QWidget):
         self.drag_offset = QPointF(0, 0)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.move_towards_center)
-        self.position_callback = position_callback
-        self.square_margin = size // 6
+        self.square_margin = size // 50
         self.square_size = size - 2 * self.square_margin
 
     def paintEvent(self, event):
@@ -77,7 +78,7 @@ class DraggableCircleWidget(QWidget):
         # Convert the position to the specified coordinate system
         x = self.height() / 2 - self.circle_center.y()
         y = self.width() / 2 - self.circle_center.x()
-        self.position_callback(x, y)
+        self.positionChanged.emit(x, y)
 
 
 
@@ -88,6 +89,6 @@ if __name__ == "__main__":
         print(f"Circle position: x={x}, y={y}")
 
     app = QApplication([])
-    widget = DraggableCircleWidget(position_callback, size=300)
+    widget = DraggableCircleWidget(size=300)
     widget.show()
     app.exec()

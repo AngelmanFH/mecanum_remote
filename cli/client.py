@@ -5,10 +5,11 @@ import sys
 import socket
 import threading
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox, QHBoxLayout
 from PySide6.QtGui import QPixmap, QPainter
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Slot
 from joystick_flexsize import DraggableCircleWidget
+from go_stop import StopButton, GoButton
 
 # srv_addr = '192.168.43.30'
 srv_addr = '10.0.0.14'
@@ -20,8 +21,8 @@ class SimpleGUI(QWidget):
 
         self.client_socket = client_socket
 
-        self.setWindowTitle("Pop-Art GUI")
-        self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("MECANUM GUI")
+        self.setGeometry(100, 100, 1200, 540)
 
         layout = QVBoxLayout()
 
@@ -31,8 +32,9 @@ class SimpleGUI(QWidget):
         layout.addWidget(self.label)
 
         # self.joy = DraggableCircleWidget(lambda x, y: print(f"x: {x}, y:{y}"))
-        self.joy = DraggableCircleWidget(self.send_position_tcp)
+        self.joy = DraggableCircleWidget()
         layout.addWidget(self.joy)
+        self.joy.positionChanged.connect(self.send_position_tcp)
 
         self.text_field = QLineEdit()
         self.text_field.textChanged.connect(self.on_text_changed)
@@ -48,10 +50,29 @@ class SimpleGUI(QWidget):
         self.quitme.setStyleSheet("font-size: 24px; color: orange;")
         layout.addWidget(self.quitme)
 
-        self.setLayout(layout)
+        hlayout = QHBoxLayout()
+        hlayout.addLayout(layout)
+        hlayout.addStretch(0)
+
+        vlayout2 = QVBoxLayout()
+
+
+        self.setLayout(hlayout)
 
         # Hintergrundbild laden
-        self.background_pixmap = QPixmap("pop_art_image.jpg")  # Pfad zum Pop-Art-Bild
+        self.background_pixmap = QPixmap("mecanum_gui.png")  # Pfad zum Pop-Art-Bild
+
+        # stop und go buttons
+        self.go = GoButton(50, parent=self)
+        self.stop = StopButton(50, parent=self)
+        self.go.clicked.connect(self.send_motctrl)
+        self.stop.clicked.connect(self.send_motctrl)
+        # self.go.show()
+        vlayout2.addStretch(0)
+        vlayout2.addWidget(self.go)
+        vlayout2.addWidget(self.stop)
+
+        hlayout.addLayout(vlayout2)
         
         # Start a thread to listen for messages from the server
         self.listening_thread = threading.Thread(target=self.listen_for_messages, daemon=True)
@@ -118,21 +139,38 @@ class SimpleGUI(QWidget):
     def update_label(self, text):
         self.label.setText(text)
 
-    def closeEvent(self, event):
-        reply = QMessageBox.question(self, 'Message',
-                                     "Are you sure you want to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+    # def closeEvent(self, event):
+    #     reply = QMessageBox.question(self, 'Message',
+    #                                  "Are you sure you want to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+    #
+    #     if reply == QMessageBox.Yes:
+    #         event.accept()
+    #     else:
+    #         event.ignore()
 
-        if reply == QMessageBox.Yes:
-            event.accept()
-        else:
-            event.ignore()
-
+    @Slot(float, float)
     def send_position_tcp(self, x, y):
         # Prepare the data
-        prefix = b'\x01'  # Example prefix
+        prefix = b'\x01'  # message signature for joystick position
         data = struct.pack('!BIff', prefix[0], 8, x, y)
 
         # Send the data
+        try:
+            self.client_socket.sendall(data)
+        except socket.error as e:
+            self.update_label(f"Connection lost: {e}")
+
+    @Slot(str)
+    def send_motctrl(self, whattodo):
+        if whattodo == "on":
+            on = True
+        elif whattodo == 'off':
+            on = False
+        else:
+            print("Illegal motctrl value")
+            exit(1)
+        prefix = b'\x02' # message signature for motctrl
+        data = struct.pack('!BI?', prefix[0], 1 , on)
         try:
             self.client_socket.sendall(data)
         except socket.error as e:
