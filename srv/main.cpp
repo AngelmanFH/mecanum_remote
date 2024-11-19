@@ -8,6 +8,18 @@
 #include <unistd.h>
 #include <chrono>
 #include <thread>
+#include <arpa/inet.h>
+#include <csignal>
+
+bool quitting;
+// Signal handler function
+void signalHandler(int signum) {
+    std::cout << "Interrupt signal (" << signum << ") received.\n";
+    // Cleanup and close up stuff here
+    quitting = true;
+    // Terminate program
+    exit(signum);
+}
 
 // Function to convert network byte order float to host byte order
 float ntohf(uint32_t net) {
@@ -166,6 +178,9 @@ void handle_client(int client_socket) {
 }
 
 int main() {
+    // Register signal handler for SIGINT (CTRL-C)
+    signal(SIGINT, signalHandler);
+
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket == -1) {
         std::cerr << "Failed to create socket" << std::endl;
@@ -197,19 +212,25 @@ int main() {
         return 1;
     }
 
-    std::cout << "Server is listening on port 54000" << std::endl;
+    while(true) {
+        std::cout << "Server is listening on port 54000" << std::endl;
 
-    sockaddr_in client_addr;
-    socklen_t client_size = sizeof(client_addr);
-    int client_socket = accept(server_socket, (sockaddr*)&client_addr, &client_size);
-    if (client_socket == -1) {
-        std::cerr << "Failed to accept connection" << std::endl;
-        close(server_socket);
-        return 1;
+        sockaddr_in client_addr;
+        socklen_t client_size = sizeof(client_addr);
+        int client_socket = accept(server_socket, (sockaddr *) &client_addr, &client_size);
+        if (client_socket == -1) {
+            std::cerr << "Failed to accept connection" << std::endl;
+            close(server_socket);
+            return 1;
+        }
+        char client_ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, INET_ADDRSTRLEN);
+
+        std::cout << "accepted connection from " << client_ip << " on port " << ntohs(client_addr.sin_port)
+                  << std::endl;
+
+        handle_client(client_socket);
     }
-
-    handle_client(client_socket);
-
     close(server_socket);
     return 0;
 }
