@@ -5,15 +5,18 @@ import sys
 import socket
 import threading
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox, QHBoxLayout
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox, QHBoxLayout, QSizePolicy, QSpacerItem
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt, Slot
 from joystick_flexsize import DraggableCircleWidget
 from go_stop import StopButton, GoButton
+from sdo_req import SdoReadWrite
 
-# srv_addr = '192.168.43.30'
-srv_addr = '10.0.0.14'
-def_hosts = ['10.0.0.14', '192.168.43.32']
+srv_addr = '192.168.43.32'
+#srv_addr = '10.0.0.14'
+def_hosts = ['192.168.43.32', '10.0.0.14', ]
+
+HOSTNAME = 'anakin.home'
 
 class SimpleGUI(QWidget):
     def __init__(self, client_socket):
@@ -50,14 +53,24 @@ class SimpleGUI(QWidget):
         self.quitme.setStyleSheet("font-size: 24px; color: orange;")
         layout.addWidget(self.quitme)
 
-        hlayout = QHBoxLayout()
-        hlayout.addLayout(layout)
-        hlayout.addStretch(0)
+        self.sdo_comm = SdoReadWrite()
+        self.sdo_comm.send_sdo_read_req.connect(self.send_sdo_upload)
+
+        sdo_lay = QVBoxLayout()
+        sdo_lay.addStretch()
+        sdo_lay.addWidget(self.sdo_comm)
+        spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        sdo_lay.addSpacerItem(spacer)
+
+        main_layout = QHBoxLayout()
+        main_layout.addLayout(layout)
+        main_layout.addStretch(0)
+        main_layout.addLayout(sdo_lay)
 
         vlayout2 = QVBoxLayout()
 
 
-        self.setLayout(hlayout)
+        self.setLayout(main_layout)
 
         # Hintergrundbild laden
         self.background_pixmap = QPixmap("mecanum_gui.png")  # Pfad zum Pop-Art-Bild
@@ -72,7 +85,7 @@ class SimpleGUI(QWidget):
         vlayout2.addWidget(self.go)
         vlayout2.addWidget(self.stop)
 
-        hlayout.addLayout(vlayout2)
+        main_layout.addLayout(vlayout2)
         
         # Start a thread to listen for messages from the server
         self.listening_thread = threading.Thread(target=self.listen_for_messages, daemon=True)
@@ -176,6 +189,16 @@ class SimpleGUI(QWidget):
         except socket.error as e:
             self.update_label(f"Connection lost: {e}")
 
+    @Slot(int, int, int, int)
+    def send_sdo_upload(self, node, idx, subidx, dtype):
+
+        prefix = b'\x03'  # message signature for sdo_upload
+        data = struct.pack('!BIIIII', prefix[0], 4*4, node, idx, subidx, dtype)
+        try:
+            self.client_socket.sendall(data)
+        except socket.error as e:
+            self.update_label(f"Connection lost: {e}")
+
 
 def connect_to_host(hostname, port):
     try:
@@ -214,7 +237,7 @@ def main():
     # hostname = 'anakin'
     # ip_address = socket.gethostbyname(hostname)
     # print("IP Address:", ip_address)
-    hostname = 'anakin'
+    hostname = HOSTNAME
     port = 54000
     client_socket = connect_to_host(hostname, port)
 

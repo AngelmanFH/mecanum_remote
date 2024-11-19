@@ -20,10 +20,55 @@ class DraggableCircleWidget(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
         # Draw white square with black border
         painter.setBrush(QBrush(Qt.white))
         painter.setPen(QPen(Qt.black, 3))
         painter.drawRect(self.square_margin, self.square_margin, self.square_size, self.square_size)
+
+        # draw grid on top of that
+        mygray = QColor(220, 220, 220)
+        painter.setPen(QPen(mygray, 3))
+
+        # vertical
+        for x in range(0, self.square_size // 2, 30):
+            if x > 0:
+                painter.setPen(QPen(mygray, 1))
+            painter.drawLine(self.square_margin + self.square_size // 2 + x,
+                             self.square_margin,
+                             self.square_margin + self.square_size // 2 + x,
+                             self.square_margin + self.square_size
+                             )
+        for x in range(30, self.square_size // 2, 30):
+            painter.drawLine(self.square_margin + self.square_size // 2 - x,
+                             self.square_margin,
+                             self.square_margin + self.square_size // 2 - x,
+                             self.square_margin + self.square_size
+                             )
+        # horizontal
+        painter.setPen(QPen(mygray, 3))
+        for y in range(0, self.square_size // 2, 30):
+            if y > 0:
+                painter.setPen(QPen(mygray, 1))
+            painter.drawLine(self.square_margin,
+                             self.square_margin + self.square_size // 2 + y,
+                             self.square_margin + self.square_size,
+                             self.square_margin + self.square_size // 2 + y
+                             )
+        for y in range(30, self.square_size // 2, 30):
+            painter.drawLine(self.square_margin,
+                             self.square_margin + self.square_size // 2 - y,
+                             self.square_margin + self.square_size,
+                             self.square_margin + self.square_size // 2 - y
+                             )
+
+
+        # Draw transp. square with black border, finally, to cover the ends of grid-lines
+        painter.setBrush(QBrush(Qt.transparent))
+        painter.setPen(QPen(Qt.black, 3))
+        painter.drawRect(self.square_margin, self.square_margin, self.square_size, self.square_size)
+
 
         # Draw 3D red circle
         gradient = QRadialGradient(self.circle_center, self.circle_radius)
@@ -85,10 +130,12 @@ class DraggableCircleWidget(QWidget):
 
 
 if __name__ == "__main__":
+    @Slot(float, float)
     def position_callback(x, y):
         print(f"Circle position: x={x}, y={y}")
 
     app = QApplication([])
     widget = DraggableCircleWidget(size=300)
+    widget.positionChanged.connect(position_callback)
     widget.show()
     app.exec()
