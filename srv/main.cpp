@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <cstring>
 #include <sys/types.h>
@@ -62,6 +63,51 @@ void unpack_motctrl_data(char *buf) {
     std::cout << "Run motor? : " << (doit ? "True":"False") << std::endl;
 }
 
+void unpack_sdo_upload(char *buf) {
+    // Unpack prefix
+    uint8_t prefix = buf[0];
+
+    // Unpack size
+    uint32_t size;
+    std::memcpy(&size, buf + 1, sizeof(size));
+    size = ntohl(size);
+
+    // Unpack node
+    uint32_t node;
+    std::memcpy(&node, buf + 5, sizeof(node));
+    node = ntohl(node);
+
+    // unpack index
+    uint32_t idx;
+    std::memcpy(&idx, buf + 9, sizeof(idx));
+    idx = ntohl(idx);
+
+    // unpack sub-index
+    uint32_t subidx;
+    std::memcpy(&subidx, buf + 13, sizeof(subidx));
+    subidx = ntohl(subidx);
+
+    // unpack index
+    uint32_t dtype;
+    std::memcpy(&dtype, buf + 17, sizeof(dtype));
+    dtype = ntohl(dtype);
+
+    // Print the unpacked data
+    std::cout << "sdo-upload message received!" << std::endl;
+    std::cout << "Prefix: " << static_cast<int>(prefix) << std::endl;
+    std::cout << "Size: " << size << std::endl;
+    std::cout << "MotorNr: " << node << std::endl;
+    std::cout << std::hex << std::uppercase << std::showbase << "Index: " << idx << std::endl;
+    std::cout << "Sub-Index: " << subidx << std::endl;
+
+    // Reset to default format (decimal)
+    std::cout << std::dec;  // Switch back to decimal
+    std::cout << std::nouppercase;  // Reset uppercase flag
+    std::cout << std::noshowbase;  // Reset showbase flag
+
+    std::cout << "Data-Type: " << dtype << std::endl;
+}
+
 void handle_client(int client_socket) {
     char buffer[1024];
     int count = 0;
@@ -93,22 +139,23 @@ void handle_client(int client_socket) {
                 break;
             }
         } else {
-            if (buffer[0] == 0x01) {
-                // position message because of magic cookie 0x01
-                unpack_pos_data(buffer);
-            }
-            else if (buffer[0] == 0x02) {
-                // position message because of magic cookie 0x01
-                unpack_motctrl_data(buffer);
-            } else {
-                std::string received_message(buffer);
-                if (received_message == "KEEP_ALIVE") {
-                    last_keep_alive = std::chrono::steady_clock::now();
-                } else {
-                    std::cout << "Received: " << buffer << std::endl;
+            switch(buffer[0]) {
+                case 0x01: unpack_pos_data(buffer);
+                break;
+                case 0x02: unpack_motctrl_data(buffer);
+                break;
+                case 0x03: unpack_sdo_upload(buffer);
+                break;
+                default: {
+                    std::string received_message(buffer);
+                    if (received_message == "KEEP_ALIVE") {
+                        last_keep_alive = std::chrono::steady_clock::now();
+                    } else {
+                        std::cout << "Received: " << buffer << std::endl;
+                    }
                 }
-
             }
+
             // Increment the count and send a message to the client
             count++;
             std::string message = "Server says: Hello, GUI! Count: " + std::to_string(count);
