@@ -1,10 +1,11 @@
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QMessageBox,
-                               QLabel, QLineEdit, QComboBox, QPushButton, QFrame)
+                               QLabel, QLineEdit, QComboBox, QPushButton, QFrame, QTextEdit)
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QFontMetrics
 
 class SdoReadWrite(QWidget):
     send_sdo_read_req = Signal(int, int, int, int)
+    send_sdo_write_req = Signal(int, int, int, int, int)
     def __init__(self):
         super().__init__()
         self.lineedits = []
@@ -49,12 +50,17 @@ class SdoReadWrite(QWidget):
                 self.typechoice = widget
             else:
                 # Create a QLineEdit for other items
-                widget = QLineEdit()
+                widget = QTextEdit()
                 widget.setPlaceholderText(self.placeholders[i])
+                font_metrics = QFontMetrics(widget.font())
+                single_line_height = font_metrics.lineSpacing()
+                widget.setFixedHeight(single_line_height + 10)  # Adding some padding
                 self.lineedits.append(widget)
+
 
             # Set the fixed width for the input fields
             widget.setFixedWidth(input_field_width)
+            # widget.setMinimumWidth(input_field_width)
 
             # Add the label and widget to the horizontal layout
             h_layout.addWidget(label)
@@ -70,8 +76,11 @@ class SdoReadWrite(QWidget):
         read_button = QPushButton("Read")
         write_button = QPushButton("Write")
 
-        # Connect the Read button to the read_hex_value method
+        # Connect the Read button to the sdo reading machine
         read_button.clicked.connect(self.read_sdo)
+
+        # Connect the Write button to the sdo writing machine
+        write_button.clicked.connect(self.write_sdo)
 
         # Add the buttons to the button layout
         button_layout.addWidget(read_button)
@@ -84,6 +93,10 @@ class SdoReadWrite(QWidget):
         self.setLayout(QVBoxLayout())  # Set a new QVBoxLayout for the main widget
         self.layout().addWidget(main_frame)  # Add the main_frame to this layout
 
+    @Slot(str)
+    def update_read_data(self, valstring):
+        self.lineedits[3].setText(valstring)
+
     @Slot()
     def read_sdo(self):
         try:
@@ -91,9 +104,23 @@ class SdoReadWrite(QWidget):
         except(TypeError): # when read_address() returns None because of erroneous input
             return
         dtypenum, dtype = self.read_datatype()
-        QMessageBox.information(self, "Address", f"MotNr: {node}\nIndex: {idx}\nSubIndex: {subidx}\nType: {dtype} ({dtypenum})")
-        self.send_sdo_read_req.emit(node, idx, subidx, dtypenum)
+        yes = QMessageBox.information(self, "Address", f"MotNr: {node}\nIndex: {idx}\nSubIndex: {subidx}\nType: {dtype} ({dtypenum})")
+        if yes:
+            self.send_sdo_read_req.emit(node, idx, subidx, dtypenum)
 
+    @Slot()
+    def write_sdo(self):
+        try:
+            node, idx, subidx = self.read_address()
+        except(TypeError): # when read_address() returns None because of erroneous input
+            return
+        dtypenum, dtype = self.read_datatype()
+        value = self.lineedits[-1].toPlainText()
+        yes = QMessageBox.information(self, "Address",
+                                      f"MotNr: {node}\nIndex: {idx}\nSubIndex: {subidx}\nType: {dtype} ({dtypenum})"
+                                      f"\nValue: {value}")
+        if yes:
+            pass
     def read_datatype(self):
         dtype = self.typechoice.currentIndex()
         dtypename = self.typechoice.currentText()
@@ -102,7 +129,7 @@ class SdoReadWrite(QWidget):
     def read_address(self):
         addrdata = []
         for index, line_edit in enumerate(self.lineedits):
-            text = line_edit.text()
+            text = line_edit.toPlainText()
             # omit the last one (value)
             if index == len(self.lineedits) - 1:
                 break
@@ -117,7 +144,8 @@ class SdoReadWrite(QWidget):
                 # print(f"value: {text} -> Integer: {value}\nLine Edit #: {index} ")
             except ValueError:
                 # Show an error message if the text is not a valid hex number
-                QMessageBox.critical(self, "Invalid Input", f"'{text}' is not a valid number.")
+                QMessageBox.critical(self, "Invalid Input", f"'{text}' in field '{self.names[index]}' "
+                                                            f"is not a valid number.")
                 return None
         return addrdata
 

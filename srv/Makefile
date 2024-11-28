@@ -5,7 +5,7 @@ CXX = g++
 TARGET = server
 
 # Define the source files
-SRCS = main.cpp
+SRCS = main.cpp comm_handler.cpp
 
 # Define the object files
 OBJS = $(SRCS:.cpp=.o)
