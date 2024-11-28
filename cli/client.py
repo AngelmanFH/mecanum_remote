@@ -215,7 +215,7 @@ def connect_to_host(hostname, port):
         # try:
         # Create a socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)  # Set a timeout for the connection attem               pt
+        sock.settimeout(1)  # Set a timeout for the connection attempt
         try:
             # Attempt to connect to the IP address
             sock.connect((ip, port))
