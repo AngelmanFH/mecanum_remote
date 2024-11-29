@@ -3,9 +3,21 @@ from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QFont, QFontMetrics
 
+def signed_int_decorator(func):
+    def wrapper(value, base=10):
+        num = func(value, base)
+        if base == 16 and num >= 2**31:
+            num -= 2**32
+        return num
+    return wrapper
+
+@signed_int_decorator
+def signed_int(value, base=10):
+    return int(value, base)
+
 class SdoReadWrite(QWidget):
     send_sdo_read_req = Signal(int, int, int, int)
-    send_sdo_write_req = Signal(int, int, int, int, int)
+    send_sdo_write_req = Signal(int, int, int, str, int)
     def __init__(self):
         super().__init__()
         self.lineedits = []
@@ -95,7 +107,7 @@ class SdoReadWrite(QWidget):
 
     @Slot(str)
     def update_read_data(self, valstring):
-        self.lineedits[3].setText(valstring)
+        self.lineedits[-1].setText(valstring)  # [-1] = the last one
 
     @Slot()
     def read_sdo(self):
@@ -104,8 +116,10 @@ class SdoReadWrite(QWidget):
         except(TypeError): # when read_address() returns None because of erroneous input
             return
         dtypenum, dtype = self.read_datatype()
-        yes = QMessageBox.information(self, "Address", f"MotNr: {node}\nIndex: {idx}\nSubIndex: {subidx}\nType: {dtype} ({dtypenum})")
-        if yes:
+        reply = QMessageBox.question(self, "Proceed?", f"Read this data from CAN-bus?\nMotNr: {node}\nIndex: "
+                                                       f"{idx}\nSubIndex: {subidx}\nType: {dtype} ({dtypenum})",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
             self.send_sdo_read_req.emit(node, idx, subidx, dtypenum)
 
     @Slot()
@@ -116,11 +130,26 @@ class SdoReadWrite(QWidget):
             return
         dtypenum, dtype = self.read_datatype()
         value = self.lineedits[-1].toPlainText()
-        yes = QMessageBox.information(self, "Address",
-                                      f"MotNr: {node}\nIndex: {idx}\nSubIndex: {subidx}\nType: {dtype} ({dtypenum})"
-                                      f"\nValue: {value}")
-        if yes:
-            pass
+        try:
+            if value.startswith("0x"):
+                # Convert the text to an integer assuming it's in hex format
+                value = signed_int(value, 16)
+            else:
+                # Convert the text to an integer assuming it's in decimal format
+                value = signed_int(value)
+        except ValueError:
+            # Show an error message if the text is not a valid hex number
+            QMessageBox.critical(self, "Invalid Input", f"'{value}' in field '{self.names[-1]}' "
+                                                        f"is not a valid number.")
+            return
+
+        reply = QMessageBox.question(self, "Proceed?",
+                                      f"Write this data to CAN-bus?\nMotNr: {node}\nIndex: {idx}\n"
+                                      f"SubIndex: {subidx}\nType: {dtype} ({dtypenum})"
+                                      f"\nValue: {value}",
+                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.send_sdo_write_req.emit(node, idx, subidx, dtype, value)
     def read_datatype(self):
         dtype = self.typechoice.currentIndex()
         dtypename = self.typechoice.currentText()
