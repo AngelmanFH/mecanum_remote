@@ -1,0 +1,145 @@
+import sys
+import threading
+import socket
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QStatusBar, QMenuBar, QDialog, QDialogButtonBox, QFormLayout
+from PySide6.QtCore import Slot
+from PySide6.QtGui import QAction
+
+from client import SimpleGUI
+
+
+class ConnectDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Connect")
+
+        self.ip_input = QLineEdit()
+        self.ip_input.setText("127.0.0.1")  # Default value
+
+        self.port_input = QLineEdit()
+        self.port_input.setText("54000")  # Default value
+
+        form_layout = QFormLayout()
+        form_layout.addRow("IP Address:", self.ip_input)
+        form_layout.addRow("Port:", self.port_input)
+
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        layout = QVBoxLayout()
+        layout.addLayout(form_layout)
+        layout.addWidget(self.button_box)
+
+        self.setLayout(layout)
+
+    def get_ip_port(self):
+        return self.ip_input.text(), int(self.port_input.text())
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Simple PySide6 GUI")
+
+        # Create central widget and layout
+        central_widget = QWidget()
+        layout = QVBoxLayout()
+        central_widget.setLayout(layout)
+        self.setCentralWidget(central_widget)
+
+
+
+
+        # Create status bar
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage("Not connected")
+
+        # Create menu bar
+        menu_bar = QMenuBar()
+        self.setMenuBar(menu_bar)
+
+        # Create "Connection" menu
+        connection_menu = menu_bar.addMenu("Connection")
+
+        # Create "Connect" action
+        connect_action = QAction("Connect", self)
+        connect_action.triggered.connect(self.show_connect_dialog)
+        connection_menu.addAction(connect_action)
+
+        # Create "Disconnect" action
+        disconnect_action = QAction("Disconnect", self)
+        disconnect_action.triggered.connect(self._disconnect)
+        connection_menu.addAction(disconnect_action)
+
+        self.socket = None
+
+        self.client = SimpleGUI(self.socket)
+        layout.addWidget(self.client)
+
+    @Slot()
+    def show_connect_dialog(self):
+        dialog = ConnectDialog()
+        if dialog.exec():
+            ip_address, port = dialog.get_ip_port()
+            self._connect(ip_address, port)
+
+    def _connect(self, ip_address, port):
+        self.status_bar.showMessage(f"Connecting to {ip_address}:{port}...")
+
+        # Create a socket and connect to the server
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self.socket.connect((ip_address, port))
+            self.status_bar.showMessage(f"Connected to {ip_address} at port {port}")
+            self.client.client_socket = self.socket
+            self.client.connected = True
+            self.client.onConnect()
+
+            # Start threads for receiving and sending data
+            #receive_thread = threading.Thread(target=self.receive_data)
+            #send_thread = threading.Thread(target=self.send_data)
+            #receive_thread.start()
+            #send_thread.start()
+        except socket.error as e:
+            self.status_bar.showMessage(f"Failed to connect: {e}")
+
+    def _disconnect(self):
+        if self.socket:
+            self.socket.close()
+            self.socket = None
+            self.client.client_socket = self.socket
+            self.client.connected = False
+            self.client.onDisconnect()
+            self.status_bar.showMessage("Disconnected")
+
+    # def receive_data(self):
+    #     print("Started receiving data")
+    #     while self.socket:
+    #         try:
+    #             data = self.socket.recv(1024)
+    #             if not data:
+    #                 break
+    #             print(f"Received: {data.decode()}")
+    #         except socket.error as e:
+    #             print(f"Receive error: {e}")
+    #             break
+    #
+    # def send_data(self):
+    #     print("Started sending data")
+    #     while self.socket:
+    #         try:
+    #             message = input("Enter message to send: ")
+    #             self.socket.sendall(message.encode())
+    #         except socket.error as e:
+    #             print(f"Send error: {e}")
+    #             break
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())

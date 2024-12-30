@@ -5,18 +5,21 @@ import sys
 import socket
 import threading
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox, QHBoxLayout, QSizePolicy, QSpacerItem
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, \
+    QMessageBox, QHBoxLayout, QSizePolicy, QSpacerItem
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt, Slot
 from joystick_flexsize import DraggableCircleWidget
 from go_stop import StopButton, GoButton
-from sdo_req import SdoReadWrite
+
+# from sdo_req import SdoReadWrite
 
 srv_addr = '192.168.43.32'
-#srv_addr = '10.0.0.14'
-def_hosts = ['192.168.43.32', '10.0.0.14', ]
+# srv_addr = '10.0.0.14'
+def_hosts = ['127.0.0.1', '192.168.43.32', '10.0.0.14', ]
 
 HOSTNAME = 'anakin.home'
+
 
 class SimpleGUI(QWidget):
     def __init__(self, client_socket):
@@ -31,7 +34,7 @@ class SimpleGUI(QWidget):
 
         self.label = QLabel('This is a Title')
         self.label.setStyleSheet("font-size: 24px; color: red;")
-        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setAlignment(Qt.AlignLeft)
         layout.addWidget(self.label)
 
         # self.joy = DraggableCircleWidget(lambda x, y: print(f"x: {x}, y:{y}"))
@@ -53,12 +56,12 @@ class SimpleGUI(QWidget):
         self.quitme.setStyleSheet("font-size: 24px; color: orange;")
         layout.addWidget(self.quitme)
 
-        self.sdo_comm = SdoReadWrite()
-        self.sdo_comm.send_sdo_read_req.connect(self.send_sdo_upload)
+        # self.sdo_comm = SdoReadWrite()
+        # self.sdo_comm.send_sdo_read_req.connect(self.send_sdo_upload)
 
         sdo_lay = QVBoxLayout()
         sdo_lay.addStretch()
-        sdo_lay.addWidget(self.sdo_comm)
+        # sdo_lay.addWidget(self.sdo_comm)
         spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Fixed)
         sdo_lay.addSpacerItem(spacer)
 
@@ -69,11 +72,10 @@ class SimpleGUI(QWidget):
 
         vlayout2 = QVBoxLayout()
 
-
         self.setLayout(main_layout)
 
         # Hintergrundbild laden
-        self.background_pixmap = QPixmap("mecanum_gui.png")  # Pfad zum Pop-Art-Bild
+        self.background_pixmap = QPixmap("mecanum_gui.png")
 
         # stop und go buttons
         self.go = GoButton(50, parent=self)
@@ -86,15 +88,32 @@ class SimpleGUI(QWidget):
         vlayout2.addWidget(self.stop)
 
         main_layout.addLayout(vlayout2)
-        
+
         # Start a thread to listen for messages from the server
-        self.listening_thread = threading.Thread(target=self.listen_for_messages, daemon=True)
-        self.listening_thread.start()
-        
+        self.listening_thread = None
+        # self.listening_thread.start()
+
         # Set up a timer to send keep-alive messages every 500 milliseconds
         self.keep_alive_timer = QTimer(self)
         self.keep_alive_timer.timeout.connect(self.send_keep_alive)
         self.keep_alive_timer.start(500)
+
+        self.connected = False
+
+    def onConnect(self):
+        if self.client_socket:
+            # Join old threads if they exist
+            if self.listening_thread and self.listening_thread.is_alive():
+                self.listening_thread.join()
+            self.listening_thread = threading.Thread(target=self.listen_for_messages, daemon=True)
+            self.listening_thread.start()
+
+    def onDisconnect(self):
+        self.connected = False
+        # Join old threads if they exist
+        if self.listening_thread and self.listening_thread.is_alive():
+            self.listening_thread.join()
+            self.listening_thread = None
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -114,41 +133,62 @@ class SimpleGUI(QWidget):
             new_width = target_rect.width()
             new_height = int(new_width / source_aspect_ratio)
 
-        scaled_pixmap = self.background_pixmap.scaled(new_width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        scaled_pixmap = self.background_pixmap.scaled(new_width, new_height, Qt.KeepAspectRatio,
+                                                      Qt.SmoothTransformation)
         x_offset = (target_rect.width() - new_width) // 2
         y_offset = (target_rect.height() - new_height) // 2
 
         painter.drawPixmap(x_offset, y_offset, scaled_pixmap)
 
+    @staticmethod
+    def pack_string(string: str) -> bytes:
+        # this is the payload
+        encoded_text = string.encode('utf-8')
+        # this is prepended to the payload, so the receiver knows how many subsequent bytes to read exactly
+        length = len(encoded_text)
+        # all is sent in one go -- receiver will split the operation into two parts
+        return struct.pack('!I', length) + encoded_text
 
     def on_text_changed(self, text):
+        data = self.pack_string(f"Text changed: {text}")
         try:
-            self.client_socket.sendall(f"Text changed: {text}".encode('utf-8'))
+            self.client_socket.sendall(data)
         except socket.error as e:
             self.update_label(f"Connection lost: {e}")
+            self.connected = False
 
     def on_combobox_changed(self, text):
+        data = self.pack_string(f"Combobox selection changed: {text}")
         try:
-            self.client_socket.sendall(f"Combobox selection changed: {text}".encode('utf-8'))
+            self.client_socket.sendall(data)
         except socket.error as e:
             self.update_label(f"Connection lost: {e}")
-        
+            self.connected = False
+
     def send_keep_alive(self):
-        try:
-            self.client_socket.sendall(b"KEEP_ALIVE")
-        except socket.error as e:
-            self.update_label(f"Connection lost: {e}")
-            self.keep_alive_timer.stop()
-        
+        if self.client_socket:
+            data = self.pack_string("KEEP_ALIVE")
+            try:
+                self.client_socket.sendall(data)
+            except socket.error as e:
+                # raise e
+                self.update_label(f"Connection lost: {e}")
+                self.keep_alive_timer.stop()
+                self.connected = False
+
     def listen_for_messages(self):
         try:
-            while True:
-                message = self.client_socket.recv(1024).decode('utf-8')
+            while self.connected:
+                print("Listening for messages...")
+                raw_length = self.client_socket.recv(4)
+                length = struct.unpack('!I', raw_length)[0]
+                message = self.client_socket.recv(length).decode('utf-8')
                 if message:
                     self.update_label(message)
         except (socket.error, ConnectionResetError) as e:
-            self.update_label(f"Connection lost: {e}")
-                
+            self.update_label(f"Conection lost: {e}")
+            self.connected = False
+
     def update_label(self, text):
         self.label.setText(text)
 
@@ -165,11 +205,20 @@ class SimpleGUI(QWidget):
     def send_position_tcp(self, x, y):
         # Prepare the data
         prefix = b'\x01'  # message signature for joystick position
-        data = struct.pack('!BIff', prefix[0], 8, x, y)
+        data = struct.pack('!Bff', prefix[0], x, y)
+
+        # Calculate the length of the message
+        message_length = len(data)
+
+        # Encode the length of the message
+        length_prefix = struct.pack('!I', message_length)
+
+        # Combine the length prefix and the actual data
+        message = length_prefix + data
 
         # Send the data
         try:
-            self.client_socket.sendall(data)
+            self.client_socket.sendall(message)
         except socket.error as e:
             self.update_label(f"Connection lost: {e}")
 
@@ -182,8 +231,8 @@ class SimpleGUI(QWidget):
         else:
             print("Illegal motctrl value")
             exit(1)
-        prefix = b'\x02' # message signature for motctrl
-        data = struct.pack('!BI?', prefix[0], 1 , on)
+        prefix = b'\x02'  # message signature for motctrl
+        data = struct.pack('!BI?', prefix[0], 1, on)
         try:
             self.client_socket.sendall(data)
         except socket.error as e:
@@ -193,7 +242,7 @@ class SimpleGUI(QWidget):
     def send_sdo_upload(self, node, idx, subidx, dtype):
 
         prefix = b'\x03'  # message signature for sdo_upload
-        data = struct.pack('!BIIIII', prefix[0], 4*4, node, idx, subidx, dtype)
+        data = struct.pack('!BIIIII', prefix[0], 4 * 4, node, idx, subidx, dtype)
         try:
             self.client_socket.sendall(data)
         except socket.error as e:
@@ -226,8 +275,8 @@ def connect_to_host(hostname, port):
             print(f"Failed to connect to {ip}: {e}")
             sock.close()
 
-        #finally:
-            #sock.close()
+        # finally:
+        # sock.close()
 
     print(f"Could not connect to any IP addresses for {hostname}")
     return None
@@ -241,14 +290,13 @@ def main():
     port = 54000
     client_socket = connect_to_host(hostname, port)
 
-
     # client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # try:
     #     client_socket.connect((srv_addr, 54000))
     # except socket.error as e:
     #     print(f"Failed to connect: {e}")
     #     #return
-        
+
     if client_socket:
         app = QApplication(sys.argv)
         gui = SimpleGUI(client_socket)
@@ -261,6 +309,7 @@ def main():
         print(f"Could not connect to host {hostname}")
         return -1
 
+
 if __name__ == '__main__':
-    main()
-    # sys.exit(main())
+    # main()
+    sys.exit(main())
