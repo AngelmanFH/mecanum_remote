@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QMouseEvent, QRadialGradient
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, Slot
 
+update_interval = 100
 
 class DraggableCircleWidget(QWidget):
     positionChanged = Signal(float, float)  # Define a custom signal
@@ -17,6 +18,12 @@ class DraggableCircleWidget(QWidget):
         self.timer.timeout.connect(self.move_towards_center)
         self.square_margin = size // 50
         self.square_size = size - 2 * self.square_margin
+
+        self.posEmitTimer = QTimer(self)  # create new QTimer
+        self.posEmitTimer.setInterval(update_interval)  # set interval to 100 ms
+        self.posEmitTimer.timeout.connect(self.emit_position)  # connect timer to the function that emits signal
+        self.posEmitTimer.start()  # start the timer
+        self.latest_position = None
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -98,7 +105,7 @@ class DraggableCircleWidget(QWidget):
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         self.dragging = False
-        self.timer.start(50)  # Start the timer to update every 50 ms
+        self.timer.start(update_interval)  # Start the timer to update every 100 ms
 
     def is_inside_circle(self, pos):
         distance = ((pos.x() - self.circle_center.x()) ** 2 + (pos.y() - self.circle_center.y()) ** 2) ** 0.5
@@ -123,9 +130,15 @@ class DraggableCircleWidget(QWidget):
         # Convert the position to the specified coordinate system
         x = self.height() / 2 - self.circle_center.y()
         y = self.width() / 2 - self.circle_center.x()
-        self.positionChanged.emit(x, y)
+        # just store the latest position for now. Emitting will be done by a timer to avoid
+        # flooding the server with too frequent minor changes by dragging the Parkinson-mouse
+        self.latest_position = (x, y)
+        # self.positionChanged.emit(x, y)
 
-
+    def emit_position(self):
+        if self.latest_position is not None:
+            self.positionChanged.emit(*self.latest_position)
+            self.latest_position = None
 
 
 

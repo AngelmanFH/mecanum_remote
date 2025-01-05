@@ -1,3 +1,4 @@
+import struct
 import sys
 import threading
 import socket
@@ -5,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, Q
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QAction
 
-from client import SimpleGUI
+from client import MecanmControl
 
 
 class ConnectDialog(QDialog):
@@ -15,7 +16,7 @@ class ConnectDialog(QDialog):
         self.setWindowTitle("Connect")
 
         self.ip_input = QLineEdit()
-        self.ip_input.setText("127.0.0.1")  # Default value
+        self.ip_input.setText("10.0.0.254")  # Default value
 
         self.port_input = QLineEdit()
         self.port_input.setText("54000")  # Default value
@@ -42,7 +43,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Simple PySide6 GUI")
+        self.setWindowTitle("MECANUM GUI")
 
         # Create central widget and layout
         central_widget = QWidget()
@@ -75,9 +76,19 @@ class MainWindow(QMainWindow):
         disconnect_action.triggered.connect(self._disconnect)
         connection_menu.addAction(disconnect_action)
 
+        # Create "Connect" action
+        connect_follower_action = QAction("Connect Follower", self)
+        connect_follower_action.triggered.connect(self.show_follower_connect_dialog)
+        connection_menu.addAction(connect_follower_action)
+
+        # Create "Disconnect" action
+        disconnect_follower_action = QAction("Disconnect Follower", self)
+        disconnect_follower_action.triggered.connect(self.disconnect_follower)
+        connection_menu.addAction(disconnect_follower_action)
+
         self.socket = None
 
-        self.client = SimpleGUI(self.socket)
+        self.client = MecanmControl(self.socket)
         layout.addWidget(self.client)
 
     @Slot()
@@ -87,13 +98,26 @@ class MainWindow(QMainWindow):
             ip_address, port = dialog.get_ip_port()
             self._connect(ip_address, port)
 
+    @Slot()
+    def show_follower_connect_dialog(self):
+        if self.client.connected:
+            dialog = ConnectDialog()
+            dialog.setWindowTitle("Connect Follower")
+            dialog.ip_input.setText("127.0.0.1")  # Default value
+            dialog.port_input.setText("53999")  # Default value
+            if dialog.exec():
+                ip_address, port = dialog.get_ip_port()
+                self.connect_follower(ip_address, port)
+
     def _connect(self, ip_address, port):
         self.status_bar.showMessage(f"Connecting to {ip_address}:{port}...")
 
         # Create a socket and connect to the server
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
         try:
             self.socket.connect((ip_address, port))
+            # self.socket.setblocking(False)
             self.status_bar.showMessage(f"Connected to {ip_address} at port {port}")
             self.client.client_socket = self.socket
             self.client.connected = True
@@ -107,6 +131,15 @@ class MainWindow(QMainWindow):
         except socket.error as e:
             self.status_bar.showMessage(f"Failed to connect: {e}")
 
+    def connect_follower(self, ip_address, port):
+        if self.client.connected:
+            code = b'\x03'
+            _port = struct.pack('!H', port)
+            _ip_address = struct.pack(f'!{len(ip_address)}s', ip_address.encode())
+            message = code + _port + _ip_address
+            length = struct.pack('!I', len(message))
+            self.socket.sendall(length + message)
+
     def _disconnect(self):
         if self.socket:
             self.socket.close()
@@ -115,6 +148,15 @@ class MainWindow(QMainWindow):
             self.client.connected = False
             self.client.onDisconnect()
             self.status_bar.showMessage("Disconnected")
+
+    def disconnect_follower(self):
+
+        if self.client.connected:
+            print("Disconnecting from follower")
+            code = b'\x04'
+            length = struct.pack('!I', len(code))
+            message = length + code
+            self.socket.sendall(message)
 
     # def receive_data(self):
     #     print("Started receiving data")
