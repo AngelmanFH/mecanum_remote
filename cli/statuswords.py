@@ -40,6 +40,7 @@ class ColorChangingLabel(QLabel):
 
 class StatusLabels(QWidget):
     update_statusword = Signal(int, int)  # value, motor#
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -47,11 +48,10 @@ class StatusLabels(QWidget):
         self.groupbox = QGroupBox("Title - changeme")
         self.groupbox.setStyleSheet("QGroupBox {background-color: white;}")
 
-        # Don't forget to set the layout of the main widget
         main_layout = QVBoxLayout(self)
         main_layout.addWidget(self.groupbox)
 
-        # Use the GroupBox layout for your grid layout
+        # groupbox is parent layout of grid layout, its parent is main_layout
         grid_layout = QGridLayout(self.groupbox)
 
         # Create and set the title label
@@ -61,8 +61,6 @@ class StatusLabels(QWidget):
         grid_layout.addWidget(self.title_label, 0, 0, 1, 2)  # Span the label across all columns
 
         self.labels = [ColorChangingLabel() for _ in range(4)]
-
-
 
         for i, label in enumerate(self.labels):
             grid_layout.addWidget(label, (i // 2) + 1, i % 2)  # Start adding labels from the second row

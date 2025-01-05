@@ -6,6 +6,7 @@ import socket
 import threading
 import time
 import select
+import os
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, \
@@ -15,8 +16,6 @@ from PySide6.QtCore import Qt, Slot
 from joystick_flexsize import DraggableCircleWidget
 from go_stop import StopButton, GoButton
 from statuswords import StatusLabels
-
-# from sdo_req import SdoReadWrite
 
 srv_addr = '192.168.43.32'
 # srv_addr = '10.0.0.14'
@@ -42,27 +41,15 @@ class MecanmControl(QWidget):
         self.label.setWordWrap(True)
         layout.addWidget(self.label)
 
-        # self.joy = DraggableCircleWidget(lambda x, y: print(f"x: {x}, y:{y}"))
         self.joy = DraggableCircleWidget()
         layout.addWidget(self.joy)
         self.joy.positionChanged.connect(self.send_position_tcp)
-
-        # self.text_field = QLineEdit()
-        # self.text_field.textChanged.connect(self.on_text_changed)
-        # layout.addWidget(self.text_field)
-
-        # self.combo_box = QComboBox()
-        # self.combo_box.addItems(['Option 1', 'Option 2', 'Option 3'])
-        # self.combo_box.currentTextChanged.connect(self.on_combobox_changed)
-        # layout.addWidget(self.combo_box)
 
         self.quitme = QPushButton("QUIT")
         self.quitme.clicked.connect(QApplication.quit)
         self.quitme.setStyleSheet("font-size: 24px; color: orange;")
         layout.addWidget(self.quitme)
 
-        # self.sdo_comm = SdoReadWrite()
-        # self.sdo_comm.send_sdo_read_req.connect(self.send_sdo_upload)
         # motor status
         self.motor_status = StatusLabels()
         self.motor_status.groupbox.setTitle('Leader')
@@ -74,7 +61,6 @@ class MecanmControl(QWidget):
         sdo_lay = QVBoxLayout()
         sdo_lay.addWidget(self.motor_status)
         sdo_lay.addStretch()
-        # sdo_lay.addWidget(self.sdo_comm)
         sdo_lay.addWidget(self.motor_status_follower)
         spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Fixed)
         sdo_lay.addSpacerItem(spacer)
@@ -89,8 +75,6 @@ class MecanmControl(QWidget):
         self.setLayout(main_layout)
 
         # Hintergrundbild laden
-        import os
-
         script_dir = os.path.dirname(os.path.realpath(__file__))
         self.background_pixmap = QPixmap(os.path.join(script_dir, "mecanum_gui.png"))
 
@@ -116,7 +100,6 @@ class MecanmControl(QWidget):
 
         # Start a thread to listen for messages from the server
         self.listening_thread = None
-        # self.listening_thread.start()
 
         # Set up a timer to send keep-alive messages every 500 milliseconds
         self.keep_alive_timer = QTimer(self)
@@ -261,16 +244,12 @@ class MecanmControl(QWidget):
         # Prepare the data
         prefix = b'\x01'  # message signature for joystick position
         data = struct.pack('!Bff', prefix[0], x, y)
-
         # Calculate the length of the message
         message_length = len(data)
-
         # Encode the length of the message
         length_prefix = struct.pack('!I', message_length)
-
         # Combine the length prefix and the actual data
         message = length_prefix + data
-
         # Send the data
         try:
             self.client_socket.sendall(message)
@@ -322,7 +301,6 @@ def connect_to_host(hostname, port):
         host_info = socket.gethostbyname_ex(hostname)
         ip_addresses = host_info[2]
         print(ip_addresses)
-
     except socket.gaierror as e:
         print(f"Error resolving hostname {hostname}: {e}\nTrying default IP-Addresses...")
         ip_addresses = def_hosts
@@ -337,32 +315,18 @@ def connect_to_host(hostname, port):
             sock.connect((ip, port))
             print(f"Successfully connected to {hostname} ({ip}) on port {port}")
             return sock  # Return the connected socket
-
         except socket.error as e:
             print(f"Failed to connect to {ip}: {e}")
             sock.close()
-
-        # finally:
-        # sock.close()
 
     print(f"Could not connect to any IP addresses for {hostname}")
     return None
 
 
 def main():
-    # hostname = 'anakin'
-    # ip_address = socket.gethostbyname(hostname)
-    # print("IP Address:", ip_address)
     hostname = HOSTNAME
     port = 54000
     client_socket = connect_to_host(hostname, port)
-
-    # client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # try:
-    #     client_socket.connect((srv_addr, 54000))
-    # except socket.error as e:
-    #     print(f"Failed to connect: {e}")
-    #     #return
 
     if client_socket:
         app = QApplication(sys.argv)
@@ -378,5 +342,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # main()
     sys.exit(main())

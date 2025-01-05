@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, Slot
 
 update_interval = 100
 
+
 class DraggableCircleWidget(QWidget):
     positionChanged = Signal(float, float)  # Define a custom signal
 
@@ -70,12 +71,10 @@ class DraggableCircleWidget(QWidget):
                              self.square_margin + self.square_size // 2 - y
                              )
 
-
         # Draw transp. square with black border, finally, to cover the ends of grid-lines
         painter.setBrush(QBrush(Qt.transparent))
         painter.setPen(QPen(Qt.black, 3))
         painter.drawRect(self.square_margin, self.square_margin, self.square_size, self.square_size)
-
 
         # Draw 3D red circle
         gradient = QRadialGradient(self.circle_center, self.circle_radius)
@@ -133,7 +132,6 @@ class DraggableCircleWidget(QWidget):
         # just store the latest position for now. Emitting will be done by a timer to avoid
         # flooding the server with too frequent minor changes by dragging the Parkinson-mouse
         self.latest_position = (x, y)
-        # self.positionChanged.emit(x, y)
 
     def emit_position(self):
         if self.latest_position is not None:
@@ -141,11 +139,11 @@ class DraggableCircleWidget(QWidget):
             self.latest_position = None
 
 
-
 if __name__ == "__main__":
     @Slot(float, float)
     def position_callback(x, y):
         print(f"Circle position: x={x}, y={y}")
+
 
     app = QApplication([])
     widget = DraggableCircleWidget(size=300)
