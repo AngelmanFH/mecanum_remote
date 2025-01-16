@@ -26,6 +26,18 @@ class DraggableCircleWidget(QWidget):
         self.posEmitTimer.start()  # start the timer
         self.latest_position = None
 
+        self.ballcolors_light = [QColor(255, 155, 155), QColor(155, 55, 55)]
+        self.ballcolors_dark = [QColor(200, 100, 100), QColor(100, 0, 0)]
+        # start with light
+        self.ballcolors = self.ballcolors_light
+        self.toggler = 0
+
+    @Slot()
+    def toggle_ballcolors(self):
+        self.toggler = (self.toggler + 1) % 2
+        self.ballcolors = self.ballcolors_light if self.toggler == 0 else self.ballcolors_dark
+        self.update()
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -78,8 +90,10 @@ class DraggableCircleWidget(QWidget):
 
         # Draw 3D red circle
         gradient = QRadialGradient(self.circle_center, self.circle_radius)
-        gradient.setColorAt(0, QColor(255, 100, 100))
-        gradient.setColorAt(1, QColor(150, 0, 0))
+        # gradient.setColorAt(0, QColor(255, 155, 155))
+        # gradient.setColorAt(1, QColor(155, 55, 55))
+        gradient.setColorAt(0, self.ballcolors[0])
+        gradient.setColorAt(1, self.ballcolors[1])
         painter.setBrush(QBrush(gradient))
         painter.setPen(QPen(Qt.black, 1))
         painter.drawEllipse(self.circle_center, self.circle_radius, self.circle_radius)

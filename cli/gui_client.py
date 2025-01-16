@@ -16,7 +16,7 @@ class ConnectDialog(QDialog):
         self.setWindowTitle("Connect")
 
         self.ip_input = QLineEdit()
-        self.ip_input.setText("10.0.0.254")  # Default value
+        self.ip_input.setText("192.168.43.32")  # Default value
 
         self.port_input = QLineEdit()
         self.port_input.setText("54000")  # Default value

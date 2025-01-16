@@ -8,7 +8,7 @@ import time
 import select
 import os
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, \
     QMessageBox, QHBoxLayout, QSizePolicy, QSpacerItem
 from PySide6.QtGui import QPixmap, QPainter
@@ -25,6 +25,7 @@ HOSTNAME = 'anakin.home'
 
 
 class MecanmControl(QWidget):
+    heartbeat = Signal()
     def __init__(self, client_socket):
         super().__init__()
 
@@ -44,6 +45,7 @@ class MecanmControl(QWidget):
         self.joy = DraggableCircleWidget()
         layout.addWidget(self.joy)
         self.joy.positionChanged.connect(self.send_position_tcp)
+        self.heartbeat.connect(self.joy.toggle_ballcolors)
 
         self.quitme = QPushButton("QUIT")
         self.quitme.clicked.connect(QApplication.quit)
@@ -172,6 +174,8 @@ class MecanmControl(QWidget):
             data = struct.pack('!I', length) + payload
             try:
                 self.client_socket.sendall(data)
+                self.heartbeat.emit()
+                # print("sent keepalive")
             except socket.error as e:
                 # raise e
                 self.update_label(f"Connection lost: {e}")
