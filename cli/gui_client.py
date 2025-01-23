@@ -2,21 +2,23 @@ import struct
 import sys
 import threading
 import socket
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QStatusBar, QMenuBar, QDialog, QDialogButtonBox, QFormLayout
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, \
+    QStatusBar, QMenuBar, QDialog, QDialogButtonBox, QFormLayout, QMessageBox
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QAction
 
 from client import MecanmControl
+from ip_or_resolve import is_ip_address, resolve_hostname
 
 
 class ConnectDialog(QDialog):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.setWindowTitle("Connect")
 
         self.ip_input = QLineEdit()
-        self.ip_input.setText("192.168.43.32")  # Default value
+        self.ip_input.setText("luke.local")  # Default value
 
         self.port_input = QLineEdit()
         self.port_input.setText("54000")  # Default value
@@ -93,20 +95,36 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def show_connect_dialog(self):
-        dialog = ConnectDialog()
+        def show_error_message(hostname):
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Critical)
+            msg_box.setWindowTitle("Error")
+            msg_box.setText(f"Host '{hostname}' could not be resolved.")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.exec()
+
+        dialog = ConnectDialog(self)
         if dialog.exec():
-            ip_address, port = dialog.get_ip_port()
-            self._connect(ip_address, port)
+            host_or_ip_address, port = dialog.get_ip_port()
+            if not is_ip_address(host_or_ip_address):
+                ip_address = resolve_hostname(host_or_ip_address)
+                if not ip_address:
+                    show_error_message(host_or_ip_address)
+                    return
+                else:
+                    host_or_ip_address = ip_address
+            self._connect(host_or_ip_address, port)
 
     @Slot()
     def show_follower_connect_dialog(self):
         if self.client.connected:
             dialog = ConnectDialog()
             dialog.setWindowTitle("Connect Follower")
-            dialog.ip_input.setText("127.0.0.1")  # Default value
+            dialog.ip_input.setText("anakin.local")  # Default value
             dialog.port_input.setText("53999")  # Default value
             if dialog.exec():
                 ip_address, port = dialog.get_ip_port()
+
                 self.connect_follower(ip_address, port)
 
     def _connect(self, ip_address, port):
