@@ -39,6 +39,7 @@ class ActionTimerAngleDist(ActionTimer):
         # run first command at start
         self.actions(self.angles[0], self.dists[0])
         self.speed = 200
+        self.compute_intervalls()
 
 
     def compute_intervalls(self):
