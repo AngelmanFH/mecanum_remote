@@ -13,6 +13,8 @@ from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineE
     QMessageBox, QHBoxLayout, QSizePolicy, QSpacerItem
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt, Slot
+
+from cli.drive_pattern_widget import DrivePatternWidget
 from joystick_flexsize import DraggableCircleWidget
 from go_stop import StopButton, GoButton
 from statuswords import StatusLabels
@@ -67,9 +69,12 @@ class MecanmControl(QWidget):
         spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Fixed)
         sdo_lay.addSpacerItem(spacer)
 
+        self.drive_pattern = DrivePatternWidget()
+        self.drive_pattern.action_signal.connect(self.send_position_polar)
         main_layout = QHBoxLayout()
         main_layout.addLayout(layout)
         main_layout.addStretch(0)
+        main_layout.addWidget(self.drive_pattern)
         main_layout.addLayout(sdo_lay)
 
         vlayout2 = QVBoxLayout()
@@ -248,6 +253,23 @@ class MecanmControl(QWidget):
         # Prepare the data
         prefix = b'\x01'  # message signature for joystick position
         data = struct.pack('!Bff', prefix[0], x, y)
+        # Calculate the length of the message
+        message_length = len(data)
+        # Encode the length of the message
+        length_prefix = struct.pack('!I', message_length)
+        # Combine the length prefix and the actual data
+        message = length_prefix + data
+        # Send the data
+        try:
+            self.client_socket.sendall(message)
+        except socket.error as e:
+            self.update_label(f"Connection lost: {e}")
+
+    @Slot(int, int)
+    def send_position_polar(self, angle, speed):
+        # Prepare the data
+        prefix = b'\x07'  # message signature for polar position
+        data = struct.pack('!Bii', prefix[0], angle, speed)
         # Calculate the length of the message
         message_length = len(data)
         # Encode the length of the message
