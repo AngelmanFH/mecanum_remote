@@ -177,6 +177,7 @@ class MecanmControl(QWidget):
             payload = struct.pack('!B', code) + payload_text
             length = len(payload)
             data = struct.pack('!I', length) + payload
+            # print("..::Ping::..")
             try:
                 self.client_socket.sendall(data)
                 self.heartbeat.emit()

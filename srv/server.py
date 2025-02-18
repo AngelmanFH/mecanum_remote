@@ -81,6 +81,6 @@ def start_server(host, port):
             break
 
 if __name__ == "__main__":
-    HOST = '127.0.0.1'
+    HOST = '0.0.0.0'
     PORT = 54000
     start_server(HOST, PORT)
