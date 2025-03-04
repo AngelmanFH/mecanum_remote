@@ -17,11 +17,13 @@ class ConnectDialog(QDialog):
 
         self.setWindowTitle("Connect")
 
+        self.last_ip = "luke.local"  # Default value
+        self.last_port = 54000  # Default value
         self.ip_input = QLineEdit()
-        self.ip_input.setText("willi.local")  # Default value
+        self.ip_input.setText(self.last_ip)
 
         self.port_input = QLineEdit()
-        self.port_input.setText("54000")  # Default value
+        self.port_input.setText(str(self.last_port))
 
         form_layout = QFormLayout()
         form_layout.addRow("IP Address:", self.ip_input)
@@ -38,7 +40,21 @@ class ConnectDialog(QDialog):
         self.setLayout(layout)
 
     def get_ip_port(self):
-        return self.ip_input.text(), int(self.port_input.text())
+        self.last_ip = self.ip_input.text()
+        try:
+            self.last_port = int(self.port_input.text())
+        except ValueError:
+            self.show_critical_dialog("Invalid port number, using default port 54000")
+            self.last_port = 54000
+        return self.last_ip, self.last_port
+
+    def show_critical_dialog(self, message):
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Critical)
+        msg_box.setWindowTitle("Conversion Error")
+        msg_box.setText("An error occurred while converting the port number.")
+        msg_box.setInformativeText(message)
+        msg_box.exec()
 
 
 class MainWindow(QMainWindow):

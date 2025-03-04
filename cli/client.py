@@ -280,7 +280,7 @@ class MecanmControl(QWidget):
         # Send the data
         try:
             self.client_socket.sendall(message)
-        except socket.error as e:
+        except (socket.error, AttributeError) as e:
             self.update_label(f"Connection lost: {e}")
 
     @Slot(str)
