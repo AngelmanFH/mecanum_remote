@@ -15,9 +15,12 @@ from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt, Slot
 
 from cli.drive_pattern_widget import DrivePatternWidget
+from cli.rotate_at_control import RotateAtWidget
 from joystick_flexsize import DraggableCircleWidget
 from go_stop import StopButton, GoButton
 from statuswords import StatusLabels
+from rotate_control import RotateWidget
+from action_timer import ActionTimerAngleDist
 
 srv_addr = '192.168.43.32'
 # srv_addr = '10.0.0.14'
@@ -71,9 +74,21 @@ class MecanmControl(QWidget):
 
         self.drive_pattern = DrivePatternWidget()
         self.drive_pattern.action_signal.connect(self.send_position_polar)
+
+        self.rotate_at_control = RotateAtWidget()
+        self.rotate_at_control.send_values.connect(self.send_rotate_at)
+
+        self.rotate_mecanum = RotateWidget()
+        self.rotate_mecanum.valueChanged.connect(self.send_rotate)
+        rotate_layout = QVBoxLayout()
+        rotate_layout.addWidget(self.rotate_at_control)
+        rotate_layout.addStretch(0)
+        rotate_layout.addWidget(self.rotate_mecanum)
+
         main_layout = QHBoxLayout()
         main_layout.addLayout(layout)
         main_layout.addStretch(0)
+        main_layout.addLayout(rotate_layout)
         main_layout.addWidget(self.drive_pattern)
         main_layout.addLayout(sdo_lay)
 
@@ -278,6 +293,31 @@ class MecanmControl(QWidget):
         # Combine the length prefix and the actual data
         message = length_prefix + data
         # Send the data
+        try:
+            self.client_socket.sendall(message)
+        except (socket.error, AttributeError) as e:
+            self.update_label(f"Connection lost: {e}")
+
+    @Slot(int)
+    def send_rotate(self, angular_speed):
+        prefix = b'\x08'
+        angular_speed_ = ActionTimerAngleDist.n_from_s(angular_speed)
+        data = struct.pack('!Bi', prefix[0], angular_speed_)
+        message_length = len(data)
+        length_prefix = struct.pack('!I', message_length)
+        message = length_prefix + data
+        try:
+            self.client_socket.sendall(message)
+        except (socket.error, AttributeError) as e:
+            self.update_label(f"Connection lost: {e}")
+
+    @Slot(int, int, int)
+    def send_rotate_at(self, x, y, angular_speed):
+        prefix = b'\x09'
+        data = struct.pack('!Biii', prefix[0], x, y, angular_speed)
+        message_length = len(data)
+        length_prefix = struct.pack('!I', message_length)
+        message = length_prefix + data
         try:
             self.client_socket.sendall(message)
         except (socket.error, AttributeError) as e:
