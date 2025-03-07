@@ -14,8 +14,8 @@ from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineE
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt, Slot
 
-from cli.drive_pattern_widget import DrivePatternWidget
-from cli.rotate_at_control import RotateAtWidget
+from drive_pattern_widget import DrivePatternWidget
+from rotate_at_control import RotateAtWidget
 from joystick_flexsize import DraggableCircleWidget
 from go_stop import StopButton, GoButton
 from statuswords import StatusLabels
@@ -244,12 +244,19 @@ class MecanmControl(QWidget):
         self.update_label(payload.decode())
 
     def handle_motor_status(self, payload):
-        node_id, _type, value = struct.unpack('!BBh', payload)
-        # print(f"node_id: {int(node_id)}, _type: {int(_type)}, value: {value}")
-        if _type == 0:  # Statusword
-            self.motor_status.update_statusword.emit(value, node_id)
-        elif _type == 1:  # Modes of operation display
-            self.update_label(f"Motor (leader) {node_id}: Modes of operation display: {int(value)}")
+        try:
+            if len(payload) != struct.calcsize('!BBh'):
+                raise ValueError("Invalid payload length")
+            node_id, _type, value = struct.unpack('!BBh', payload)
+            # print(f"node_id: {int(node_id)}, _type: {int(_type)}, value: {value}")
+            if _type == 0:  # Statusword
+                self.motor_status.update_statusword.emit(value, node_id)
+            elif _type == 1:  # Modes of operation display
+                self.update_label(f"Motor (leader) {node_id}: Modes of operation display: {int(value)}")
+        except struct.error as e:
+            print(f"Struct unpacking error: {e}")
+        except Exception as e:
+            print(f"Exception: {e}")
 
     def handle_follower_motor_status(self, payload):
         node_id, _type, value = struct.unpack('!BBh', payload)

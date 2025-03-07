@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 
 import sys
 
-from cli.action_timer import ActionTimerAngleDist
+from action_timer import ActionTimerAngleDist
 
 
 class DrivePatternWidget(QWidget):

@@ -17,7 +17,8 @@ class ConnectDialog(QDialog):
 
         self.setWindowTitle("Connect")
 
-        self.last_ip = "luke.local"  # Default value
+        #self.last_ip = "luke.local"  # Default value
+        self.last_ip = "192.168.73.123"
         self.last_port = 54000  # Default value
         self.ip_input = QLineEdit()
         self.ip_input.setText(self.last_ip)
