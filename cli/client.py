@@ -31,6 +31,7 @@ HOSTNAME = 'anakin.home'
 
 class MecanmControl(QWidget):
     heartbeat = Signal()
+    sig_handle_incoming_message = Signal(bytes)
     def __init__(self, client_socket):
         super().__init__()
 
@@ -130,6 +131,9 @@ class MecanmControl(QWidget):
 
         self.connected = False
 
+        # connect handler signal with handler
+        self.sig_handle_incoming_message.connect(self.handle_incoming_message)
+
     def onConnect(self):
         if self.client_socket:
             # Join old threads if they exist
@@ -222,7 +226,8 @@ class MecanmControl(QWidget):
                 length = struct.unpack('!I', raw_length)[0]
                 message = self.client_socket.recv(length)
                 if message:
-                    self.handle_incoming_message(message)
+                    # use a signal to uncouple GUI-parts from the receiver thread
+                    self.sig_handle_incoming_message.emit(message)
         except (socket.error, ConnectionResetError) as e:
             self.update_label(f"Connection lost: {e}")
             self.connected = False
@@ -252,6 +257,7 @@ class MecanmControl(QWidget):
             if _type == 0:  # Statusword
                 self.motor_status.update_statusword.emit(value, node_id)
             elif _type == 1:  # Modes of operation display
+                # pass
                 self.update_label(f"Motor (leader) {node_id}: Modes of operation display: {int(value)}")
         except struct.error as e:
             print(f"Struct unpacking error: {e}")
