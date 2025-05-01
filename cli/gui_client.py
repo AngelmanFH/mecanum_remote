@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, Q
     QStatusBar, QMenuBar, QDialog, QDialogButtonBox, QFormLayout, QMessageBox
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QAction
+import json
 
 from client import MecanmControl
 from ip_or_resolve import is_ip_address, resolve_hostname
@@ -21,10 +22,10 @@ class ConnectDialog(QDialog):
         self.last_ip = "luke.local" # "192.168.73.123"
         self.last_port = 54000  # Default value
         self.ip_input = QLineEdit()
-        self.ip_input.setText(self.last_ip)
+        self.ip_input.setPlaceholderText("Enter IP Address")
 
         self.port_input = QLineEdit()
-        self.port_input.setText(str(self.last_port))
+        self.port_input.setPlaceholderText("Enter Port")
 
         form_layout = QFormLayout()
         form_layout.addRow("IP Address:", self.ip_input)
@@ -32,6 +33,7 @@ class ConnectDialog(QDialog):
 
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.button_box.accepted.connect(self.accept)
+        self.button_box.accepted.connect(self.save_input)
         self.button_box.rejected.connect(self.reject)
 
         layout = QVBoxLayout()
@@ -39,6 +41,25 @@ class ConnectDialog(QDialog):
         layout.addWidget(self.button_box)
 
         self.setLayout(layout)
+        self.load_input()
+
+    def save_input(self):
+        ip_address = self.ip_input.text()
+        port = self.port_input.text()
+
+        with open("last_connection.json", "w") as file:
+            json.dump({"ip_address": ip_address, "port": port}, file)
+
+    def load_input(self):
+        try:
+            with open("last_connection.json", "r") as file:
+                data = json.load(file)
+                self.ip_input.setText(data.get("ip_address", ""))
+                self.port_input.setText(data.get("port", ""))
+                print(f'data from file: ip_input: {data.get("ip_address", "")}, port: {data.get("port", "")}')
+        except FileNotFoundError as e:
+            print(f"Error: {e}")
+            pass
 
     def get_ip_port(self):
         self.last_ip = self.ip_input.text()
