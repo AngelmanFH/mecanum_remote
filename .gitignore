@@ -4,3 +4,4 @@ venv
 *:Zone.Identifier
 pack
 myenv/
+valgrind-python.supp
