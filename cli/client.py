@@ -314,7 +314,8 @@ class MecanmControl(QWidget):
     @Slot(int)
     def send_rotate(self, angular_speed):
         prefix = b'\x08'
-        angular_speed_ = ActionTimerAngleDist.n_from_s(angular_speed)
+        # angular_speed_ = ActionTimerAngleDist.n_from_s(angular_speed)
+        angular_speed_ = angular_speed
         data = struct.pack('!Bi', prefix[0], angular_speed_)
         message_length = len(data)
         length_prefix = struct.pack('!I', message_length)
