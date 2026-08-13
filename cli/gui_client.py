@@ -10,6 +10,11 @@ import json
 
 from client import MecanmControl
 from ip_or_resolve import is_ip_address, resolve_hostname
+from ssh_connection_widget import SshConnectionWidget
+
+# for ssh to the raspberries
+mecanum1 = "localhost"
+mecanum1_user = "bernd"
 
 
 class ConnectDialog(QDialog):
@@ -91,7 +96,7 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
 
-
+        self.ssh_window = None
 
 
         # Create status bar
@@ -125,6 +130,11 @@ class MainWindow(QMainWindow):
         disconnect_follower_action = QAction("Disconnect Follower", self)
         disconnect_follower_action.triggered.connect(self.disconnect_follower)
         connection_menu.addAction(disconnect_follower_action)
+
+        # Create "SSH Connection" action
+        ssh_action = QAction("Open SSH Window", self)
+        ssh_action.triggered.connect(self.open_ssh_window)
+        connection_menu.addAction(ssh_action)
 
         self.socket = None
 
@@ -213,6 +223,14 @@ class MainWindow(QMainWindow):
             length = struct.pack('!I', len(code))
             message = length + code
             self.socket.sendall(message)
+
+    def open_ssh_window(self):
+        self.ssh_window = SshConnectionWidget(
+            host=mecanum1,
+            user=mecanum1_user,
+            port=22,
+        )
+        self.ssh_window.show()
 
     # def receive_data(self):
     #     print("Started receiving data")
