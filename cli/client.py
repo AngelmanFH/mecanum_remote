@@ -1,18 +1,19 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import struct
 import sys
-import socket
-import threading
-import time
-import select
+# import socket
+# import threading
+# import time
+# import select
 import os
 
 from PySide6.QtCore import QTimer, Signal
-from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton,
-    QMessageBox, QHBoxLayout, QSizePolicy, QSpacerItem)
+from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, QPushButton,
+    QHBoxLayout, QSizePolicy, QSpacerItem)
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt, Slot
+from PySide6.QtNetwork import QAbstractSocket
 
 from drive_pattern_widget import DrivePatternWidget
 from rotate_at_control import RotateAtWidget
@@ -20,7 +21,7 @@ from joystick_flexsize import DraggableCircleWidget
 from go_stop import StopButton, GoButton
 from statuswords import StatusLabels
 from rotate_control import RotateWidget
-from action_timer import ActionTimerAngleDist
+# from action_timer import ActionTimerAngleDist
 
 srv_addr = '192.168.43.32'
 # srv_addr = '10.0.0.14'
@@ -31,125 +32,306 @@ HOSTNAME = 'anakin.home'
 
 class MecanmControl(QWidget):
     heartbeat = Signal()
-    sig_handle_incoming_message = Signal(bytes)
+    # sig_handle_incoming_message = Signal(bytes)
+    # def __init__(self, client_socket):
+    #     super().__init__()
+    #
+    #     self.client_socket = client_socket
+    #
+    #     self.setWindowTitle("MECANUM GUI")
+    #     self.setGeometry(100, 100, 1200, 540)
+    #
+    #     layout = QVBoxLayout()
+    #
+    #     self.label = QLabel('Feedback Text')
+    #     self.label.setStyleSheet("font-size: 14px; color: red;")
+    #     self.label.setAlignment(Qt.AlignLeft)
+    #     self.label.setWordWrap(True)
+    #     layout.addWidget(self.label)
+    #
+    #     self.joy = DraggableCircleWidget()
+    #     layout.addWidget(self.joy)
+    #     self.joy.positionChanged.connect(self.send_position_tcp)
+    #     self.heartbeat.connect(self.joy.toggle_ballcolors)
+    #
+    #     self.quitme = QPushButton("QUIT")
+    #     self.quitme.clicked.connect(QApplication.quit)
+    #     self.quitme.setStyleSheet("font-size: 24px; color: orange;")
+    #     layout.addWidget(self.quitme)
+    #
+    #     # motor status
+    #     self.motor_status = StatusLabels()
+    #     self.motor_status.groupbox.setTitle('Leader')
+    #     self.motor_status.title_label.setText('Leader')
+    #     self.motor_status_follower = StatusLabels()
+    #     self.motor_status_follower.groupbox.setTitle('Follower')
+    #     self.motor_status_follower.title_label.setText('Follower')
+    #
+    #     sdo_lay = QVBoxLayout()
+    #     sdo_lay.addWidget(self.motor_status)
+    #     sdo_lay.addStretch()
+    #     sdo_lay.addWidget(self.motor_status_follower)
+    #     spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Fixed)
+    #     sdo_lay.addSpacerItem(spacer)
+    #
+    #     self.drive_pattern = DrivePatternWidget()
+    #     self.drive_pattern.action_signal.connect(self.send_position_polar)
+    #
+    #     self.rotate_at_control = RotateAtWidget()
+    #     self.rotate_at_control.send_values.connect(self.send_rotate_at)
+    #
+    #     self.rotate_mecanum = RotateWidget()
+    #     self.rotate_mecanum.valueChanged.connect(self.send_rotate)
+    #     rotate_layout = QVBoxLayout()
+    #     rotate_layout.addWidget(self.rotate_at_control)
+    #     rotate_layout.addStretch(0)
+    #     rotate_layout.addWidget(self.rotate_mecanum)
+    #
+    #     main_layout = QHBoxLayout()
+    #     main_layout.addLayout(layout)
+    #     main_layout.addStretch(0)
+    #     main_layout.addLayout(rotate_layout)
+    #     main_layout.addWidget(self.drive_pattern)
+    #     main_layout.addLayout(sdo_lay)
+    #
+    #     vlayout2 = QVBoxLayout()
+    #
+    #     self.setLayout(main_layout)
+    #
+    #     # Hintergrundbild laden
+    #     script_dir = os.path.dirname(os.path.realpath(__file__))
+    #     self.background_pixmap = QPixmap(os.path.join(script_dir, "mecanum_gui.png"))
+    #
+    #     # stop und go buttons
+    #     self.go = GoButton(50, parent=self)
+    #     self.stop = StopButton(50, parent=self)
+    #     self.go.clicked.connect(self.send_motctrl)
+    #     self.stop.clicked.connect(self.send_motctrl)
+    #
+    #     vlayout2.addWidget(self.go)
+    #     vlayout2.addWidget(self.stop)
+    #     vlayout2.addStretch(0)
+    #
+    #     self.go_f = GoButton(50, parent=self)
+    #     self.stop_f = StopButton(50, parent=self)
+    #     self.go_f.clicked.connect(self.send_motctrl_f)
+    #     self.stop_f.clicked.connect(self.send_motctrl_f)
+    #
+    #     vlayout2.addWidget(self.go_f)
+    #     vlayout2.addWidget(self.stop_f)
+    #
+    #     main_layout.addLayout(vlayout2)
+    #
+    #     # Start a thread to listen for messages from the server
+    #     self.listening_thread = None
+    #
+    #     # Set up a timer to send keep-alive messages every 500 milliseconds
+    #     self.keep_alive_timer = QTimer(self)
+    #     self.keep_alive_timer.timeout.connect(self.send_keep_alive)
+    #     self.keep_alive_timer.start(500)
+    #
+    #     self.connected = False
+    #
+    #     # connect handler signal with handler
+    #     self.sig_handle_incoming_message.connect(self.handle_incoming_message)
+
     def __init__(self, client_socket):
         super().__init__()
 
         self.client_socket = client_socket
+        self.connected = False
+        self.receive_buffer = bytearray()
+
+        self.label = None
+        self.joy = None
+        self.quitme = None
+        self.motor_status = None
+        self.motor_status_follower = None
+        self.drive_pattern = None
+        self.rotate_at_control = None
+        self.rotate_mecanum = None
+        self.go = None
+        self.stop = None
+        self.go_f = None
+        self.stop_f = None
+        self.background_pixmap = None
+        self.keep_alive_timer = None
 
         self.setWindowTitle("MECANUM GUI")
         self.setGeometry(100, 100, 1200, 540)
 
-        layout = QVBoxLayout()
+        self.setup_ui()
+        self.setup_background()
+        self.setup_network()
+
+        self.keep_alive_timer = QTimer(self)
+        self.keep_alive_timer.timeout.connect(self.send_keep_alive)
+        self.keep_alive_timer.start(500)
+
+    def setup_ui(self):
+        joystick_layout = QVBoxLayout()
 
         self.label = QLabel('Feedback Text')
         self.label.setStyleSheet("font-size: 14px; color: red;")
-        self.label.setAlignment(Qt.AlignLeft)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.label.setWordWrap(True)
-        layout.addWidget(self.label)
+        joystick_layout.addWidget(self.label)
 
         self.joy = DraggableCircleWidget()
-        layout.addWidget(self.joy)
         self.joy.positionChanged.connect(self.send_position_tcp)
         self.heartbeat.connect(self.joy.toggle_ballcolors)
+        joystick_layout.addWidget(self.joy)
 
         self.quitme = QPushButton("QUIT")
         self.quitme.clicked.connect(QApplication.quit)
         self.quitme.setStyleSheet("font-size: 24px; color: orange;")
-        layout.addWidget(self.quitme)
+        joystick_layout.addWidget(self.quitme)
 
-        # motor status
-        self.motor_status = StatusLabels()
-        self.motor_status.groupbox.setTitle('Leader')
-        self.motor_status.title_label.setText('Leader')
-        self.motor_status_follower = StatusLabels()
-        self.motor_status_follower.groupbox.setTitle('Follower')
-        self.motor_status_follower.title_label.setText('Follower')
-
-        sdo_lay = QVBoxLayout()
-        sdo_lay.addWidget(self.motor_status)
-        sdo_lay.addStretch()
-        sdo_lay.addWidget(self.motor_status_follower)
-        spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Fixed)
-        sdo_lay.addSpacerItem(spacer)
+        status_layout = self.create_status_layout()
+        rotate_layout = self.create_rotate_layout()
+        go_stop_layout = self.create_go_stop_layout()
 
         self.drive_pattern = DrivePatternWidget()
         self.drive_pattern.action_signal.connect(self.send_position_polar)
 
+        main_layout = QHBoxLayout()
+        main_layout.addLayout(joystick_layout)
+        main_layout.addStretch(0)
+        main_layout.addLayout(rotate_layout)
+        main_layout.addWidget(self.drive_pattern)
+        main_layout.addLayout(status_layout)
+        main_layout.addLayout(go_stop_layout)
+
+        self.setLayout(main_layout)
+
+    def create_status_layout(self):
+        self.motor_status = StatusLabels()
+        self.motor_status.groupbox.setTitle('Leader')
+        self.motor_status.title_label.setText('Leader')
+
+        self.motor_status_follower = StatusLabels()
+        self.motor_status_follower.groupbox.setTitle('Follower')
+        self.motor_status_follower.title_label.setText('Follower')
+
+        status_layout = QVBoxLayout()
+        status_layout.addWidget(self.motor_status)
+        status_layout.addStretch()
+        status_layout.addWidget(self.motor_status_follower)
+
+        spacer = QSpacerItem(20, 30, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        status_layout.addSpacerItem(spacer)
+
+        return status_layout
+
+    def create_rotate_layout(self):
         self.rotate_at_control = RotateAtWidget()
         self.rotate_at_control.send_values.connect(self.send_rotate_at)
 
         self.rotate_mecanum = RotateWidget()
         self.rotate_mecanum.valueChanged.connect(self.send_rotate)
+
         rotate_layout = QVBoxLayout()
         rotate_layout.addWidget(self.rotate_at_control)
         rotate_layout.addStretch(0)
         rotate_layout.addWidget(self.rotate_mecanum)
 
-        main_layout = QHBoxLayout()
-        main_layout.addLayout(layout)
-        main_layout.addStretch(0)
-        main_layout.addLayout(rotate_layout)
-        main_layout.addWidget(self.drive_pattern)
-        main_layout.addLayout(sdo_lay)
+        return rotate_layout
 
-        vlayout2 = QVBoxLayout()
+    def create_go_stop_layout(self):
+        button_layout = QVBoxLayout()
 
-        self.setLayout(main_layout)
-
-        # Hintergrundbild laden
-        script_dir = os.path.dirname(os.path.realpath(__file__))
-        self.background_pixmap = QPixmap(os.path.join(script_dir, "mecanum_gui.png"))
-
-        # stop und go buttons
         self.go = GoButton(50, parent=self)
         self.stop = StopButton(50, parent=self)
         self.go.clicked.connect(self.send_motctrl)
         self.stop.clicked.connect(self.send_motctrl)
 
-        vlayout2.addWidget(self.go)
-        vlayout2.addWidget(self.stop)
-        vlayout2.addStretch(0)
+        button_layout.addWidget(self.go)
+        button_layout.addWidget(self.stop)
+        button_layout.addStretch(0)
 
         self.go_f = GoButton(50, parent=self)
         self.stop_f = StopButton(50, parent=self)
         self.go_f.clicked.connect(self.send_motctrl_f)
         self.stop_f.clicked.connect(self.send_motctrl_f)
 
-        vlayout2.addWidget(self.go_f)
-        vlayout2.addWidget(self.stop_f)
+        button_layout.addWidget(self.go_f)
+        button_layout.addWidget(self.stop_f)
 
-        main_layout.addLayout(vlayout2)
+        return button_layout
 
-        # Start a thread to listen for messages from the server
-        self.listening_thread = None
+    def setup_background(self):
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        self.background_pixmap = QPixmap(os.path.join(script_dir, "mecanum_gui.png"))
 
-        # Set up a timer to send keep-alive messages every 500 milliseconds
-        self.keep_alive_timer = QTimer(self)
-        self.keep_alive_timer.timeout.connect(self.send_keep_alive)
-        self.keep_alive_timer.start(500)
+    def setup_network(self):
+        if self.client_socket:
+            self.client_socket.readyRead.connect(self.read_available_data)
 
-        self.connected = False
+    # def onConnect(self):
+    #     if self.client_socket:
+    #         # Join old threads if they exist
+    #         if self.listening_thread and self.listening_thread.is_alive():
+    #             self.listening_thread.join()
+    #         self.listening_thread = threading.Thread(target=self.listen_for_messages)  # , daemon=True)
+    #         self.listening_thread.start()
 
-        # connect handler signal with handler
-        self.sig_handle_incoming_message.connect(self.handle_incoming_message)
+    # def onDisconnect(self):
+    #     self.connected = False
+    #     # Join old threads if they exist
+    #     if self.listening_thread and self.listening_thread.is_alive():
+    #         self.listening_thread.join()
+    #         self.listening_thread = None
 
     def onConnect(self):
-        if self.client_socket:
-            # Join old threads if they exist
-            if self.listening_thread and self.listening_thread.is_alive():
-                self.listening_thread.join()
-            self.listening_thread = threading.Thread(target=self.listen_for_messages)  # , daemon=True)
-            self.listening_thread.start()
+        if not self.client_socket:
+            return
+
+        self.connected = True
+        self.receive_buffer.clear()
+
+        try:
+            self.client_socket.readyRead.disconnect(self.read_available_data)
+        except RuntimeError:
+            pass
+
+        self.client_socket.readyRead.connect(self.read_available_data)
 
     def onDisconnect(self):
         self.connected = False
-        # Join old threads if they exist
-        if self.listening_thread and self.listening_thread.is_alive():
-            self.listening_thread.join()
-            self.listening_thread = None
+        self.receive_buffer.clear()
+
+    @Slot()
+    def read_available_data(self):
+        if not self.client_socket:
+            return
+
+        data = self.client_socket.readAll().data()
+        if not data:
+            return
+
+        self.receive_buffer.extend(data)
+        self.process_receive_buffer()
+
+    def process_receive_buffer(self):
+        while True:
+            if len(self.receive_buffer) < 4:
+                return
+
+            message_length = struct.unpack('!I', self.receive_buffer[:4])[0]
+            full_message_length = 4 + message_length
+
+            if len(self.receive_buffer) < full_message_length:
+                return
+
+            message = bytes(self.receive_buffer[4:full_message_length])
+            del self.receive_buffer[:full_message_length]
+
+            self.handle_incoming_message(message)
 
     def paintEvent(self, event):
+        if self.background_pixmap.isNull():
+            return
+
         painter = QPainter(self)
         target_rect = self.rect()
         source_rect = self.background_pixmap.rect()
@@ -173,8 +355,13 @@ class MecanmControl(QWidget):
             new_width = target_rect.width()
             new_height = int(new_width / source_aspect_ratio)
 
-        scaled_pixmap = self.background_pixmap.scaled(new_width, new_height, Qt.KeepAspectRatio,
-                                                      Qt.SmoothTransformation)
+        scaled_pixmap = self.background_pixmap.scaled(
+            new_width,
+            new_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+
         x_offset = (target_rect.width() - new_width) // 2
         y_offset = (target_rect.height() - new_height) // 2
 
@@ -189,50 +376,80 @@ class MecanmControl(QWidget):
         # all is sent in one go -- receiver will split the operation into two parts
         return struct.pack('!I', length) + encoded_text
 
-    def send_keep_alive(self):
-        if self.client_socket:
-            code = 0x00  # code for keep_alive
-            payload_text = "KEEP_ALIVE".encode('utf-8')
-            payload = struct.pack('!B', code) + payload_text
-            length = len(payload)
-            data = struct.pack('!I', length) + payload
-            # print("..::Ping::..")
-            try:
-                self.client_socket.sendall(data)
-                self.heartbeat.emit()
-                # print("sent keepalive")
-            except socket.error as e:
-                # raise e
-                self.update_label(f"Connection lost: {e}")
-                self.keep_alive_timer.stop()
-                self.connected = False
+    def send_message(self, payload: bytes):
+        if not self.connected or not self.client_socket:
+            return False
 
-    def listen_for_messages(self):
-        try:
-            while self.connected:
-                # print("Listening for messages...")
-                ready_to_read, ready_to_write, in_error = select.select([self.client_socket], [], [], 0.1)
-                if not ready_to_read:
-                    continue  # No data ready to be read yet, go check again
-                try:
-                    raw_length = self.client_socket.recv(4)
-                except AttributeError:  # when connection is closed while select waits,
-                    # the socket will be consequently None
-                    continue
-                except socket.error as e:
-                    self.update_label(f"Connection lost: {e}")
-                    self.connected = False
-                    break
-                length = struct.unpack('!I', raw_length)[0]
-                message = self.client_socket.recv(length)
-                if message:
-                    # use a signal to uncouple GUI-parts from the receiver thread
-                    self.sig_handle_incoming_message.emit(message)
-        except (socket.error, ConnectionResetError) as e:
-            self.update_label(f"Connection lost: {e}")
+        if self.client_socket.state() != QAbstractSocket.SocketState.ConnectedState:
             self.connected = False
+            self.update_label("Connection lost.")
+            return False
+
+        message = struct.pack('!I', len(payload)) + payload
+        bytes_written = self.client_socket.write(message)
+
+        if bytes_written == -1:
+            self.connected = False
+            self.update_label(f"Connection lost: {self.client_socket.errorString()}")
+            return False
+
+        return True
+
+    # def send_keep_alive(self):
+    #     if self.client_socket:
+    #         code = 0x00  # code for keep_alive
+    #         payload_text = "KEEP_ALIVE".encode('utf-8')
+    #         payload = struct.pack('!B', code) + payload_text
+    #         length = len(payload)
+    #         data = struct.pack('!I', length) + payload
+    #         # print("..::Ping::..")
+    #         try:
+    #             self.client_socket.sendall(data)
+    #             self.heartbeat.emit()
+    #             # print("sent keepalive")
+    #         except socket.error as e:
+    #             # raise e
+    #             self.update_label(f"Connection lost: {e}")
+    #             self.keep_alive_timer.stop()
+    #             self.connected = False
+
+    def send_keep_alive(self):
+        payload = struct.pack('!B', 0x00) + b"KEEP_ALIVE"
+
+        if self.send_message(payload):
+            self.heartbeat.emit()
+        else:
+            self.keep_alive_timer.stop()
+
+    # def listen_for_messages(self):
+    #     try:
+    #         while self.connected:
+    #             # print("Listening for messages...")
+    #             ready_to_read, ready_to_write, in_error = select.select([self.client_socket], [], [], 0.1)
+    #             if not ready_to_read:
+    #                 continue  # No data ready to be read yet, go check again
+    #             try:
+    #                 raw_length = self.client_socket.recv(4)
+    #             except AttributeError:  # when connection is closed while select waits,
+    #                 # the socket will be consequently None
+    #                 continue
+    #             except socket.error as e:
+    #                 self.update_label(f"Connection lost: {e}")
+    #                 self.connected = False
+    #                 break
+    #             length = struct.unpack('!I', raw_length)[0]
+    #             message = self.client_socket.recv(length)
+    #             if message:
+    #                 # use a signal to uncouple GUI-parts from the receiver thread
+    #                 self.sig_handle_incoming_message.emit(message)
+    #     except (socket.error, ConnectionResetError) as e:
+    #         self.update_label(f"Connection lost: {e}")
+    #         self.connected = False
 
     def handle_incoming_message(self, message):
+        if not message:
+            return
+
         command = struct.unpack('!B', message[0:1])[0]  # Unpack the first byte
         rest_payload = message[1:]  # Get the rest of the payload
         if command == 100:
@@ -246,14 +463,15 @@ class MecanmControl(QWidget):
             self.update_label(message)
 
     def handle_general_message(self, payload):
-        self.update_label(payload.decode())
+        self.update_label(payload.decode(errors="replace"))
 
     def handle_motor_status(self, payload):
         try:
             if len(payload) != struct.calcsize('!BBh'):
                 raise ValueError("Invalid payload length")
+
             node_id, _type, value = struct.unpack('!BBh', payload)
-            # print(f"node_id: {int(node_id)}, _type: {int(_type)}, value: {value}")
+
             if _type == 0:  # Statusword
                 self.motor_status.update_statusword.emit(value, node_id)
             elif _type == 1:  # Modes of operation display
@@ -265,162 +483,206 @@ class MecanmControl(QWidget):
             print(f"Exception: {e}")
 
     def handle_follower_motor_status(self, payload):
-        node_id, _type, value = struct.unpack('!BBh', payload)
-        # print(f"node_id: {int(node_id)}, _type: {int(_type)}, value: {value}")
-        if _type == 0:  # Statusword
-            self.motor_status_follower.update_statusword.emit(value, node_id)
-        elif _type == 1:  # Modes of operation display
-            self.update_label(f"Motor (follower) {node_id}: Modes of operation display: {int(value)}")
+        # node_id, _type, value = struct.unpack('!BBh', payload)
+        # # print(f"node_id: {int(node_id)}, _type: {int(_type)}, value: {value}")
+        # if _type == 0:  # Statusword
+        #     self.motor_status_follower.update_statusword.emit(value, node_id)
+        # elif _type == 1:  # Modes of operation display
+        #     self.update_label(f"Motor (follower) {node_id}: Modes of operation display: {int(value)}")
+        try:
+            if len(payload) != struct.calcsize('!BBh'):
+                raise ValueError("Invalid payload length")
+
+            node_id, _type, value = struct.unpack('!BBh', payload)
+
+            if _type == 0:
+                self.motor_status_follower.update_statusword.emit(value, node_id)
+            elif _type == 1:
+                self.update_label(f"Motor (follower) {node_id}: Modes of operation display: {int(value)}")
+
+        except struct.error as e:
+            print(f"Struct unpacking error: {e}")
+
+        except Exception as e:
+            print(f"Exception: {e}")
 
     def update_label(self, text):
         self.label.setText(text)
 
     @Slot(float, float)
     def send_position_tcp(self, x, y):
-        if not self.connected:
-            return
-        # Prepare the data
-        prefix = b'\x01'  # message signature for joystick position
-        data = struct.pack('!Bff', prefix[0], x, y)
-        # Calculate the length of the message
-        message_length = len(data)
-        # Encode the length of the message
-        length_prefix = struct.pack('!I', message_length)
-        # Combine the length prefix and the actual data
-        message = length_prefix + data
-        # Send the data
-        try:
-            self.client_socket.sendall(message)
-        except socket.error as e:
-            self.update_label(f"Connection lost: {e}")
+        # if not self.connected:
+        #     return
+        # # Prepare the data
+        # prefix = b'\x01'  # message signature for joystick position
+        # data = struct.pack('!Bff', prefix[0], x, y)
+        # # Calculate the length of the message
+        # message_length = len(data)
+        # # Encode the length of the message
+        # length_prefix = struct.pack('!I', message_length)
+        # # Combine the length prefix and the actual data
+        # message = length_prefix + data
+        # # Send the data
+        # try:
+        #     self.client_socket.sendall(message)
+        # except socket.error as e:
+        #     self.update_label(f"Connection lost: {e}")
+        payload = struct.pack('!Bff', 0x01, x, y)
+        self.send_message(payload)
 
     @Slot(int, int)
     def send_position_polar(self, angle, speed):
-        # Prepare the data
-        prefix = b'\x07'  # message signature for polar position
-        data = struct.pack('!Bii', prefix[0], angle, speed)
-        # Calculate the length of the message
-        message_length = len(data)
-        # Encode the length of the message
-        length_prefix = struct.pack('!I', message_length)
-        # Combine the length prefix and the actual data
-        message = length_prefix + data
-        # Send the data
-        try:
-            self.client_socket.sendall(message)
-        except (socket.error, AttributeError) as e:
-            self.update_label(f"Connection lost: {e}")
+        # # Prepare the data
+        # prefix = b'\x07'  # message signature for polar position
+        # data = struct.pack('!Bii', prefix[0], angle, speed)
+        # # Calculate the length of the message
+        # message_length = len(data)
+        # # Encode the length of the message
+        # length_prefix = struct.pack('!I', message_length)
+        # # Combine the length prefix and the actual data
+        # message = length_prefix + data
+        # # Send the data
+        # try:
+        #     self.client_socket.sendall(message)
+        # except (socket.error, AttributeError) as e:
+        #     self.update_label(f"Connection lost: {e}")
+        payload = struct.pack('!Bii', 0x07, angle, speed)
+        self.send_message(payload)
 
     @Slot(int)
     def send_rotate(self, angular_speed):
-        prefix = b'\x08'
-        # angular_speed_ = ActionTimerAngleDist.n_from_s(angular_speed)
-        angular_speed_ = angular_speed
-        data = struct.pack('!Bi', prefix[0], angular_speed_)
-        message_length = len(data)
-        length_prefix = struct.pack('!I', message_length)
-        message = length_prefix + data
-        try:
-            self.client_socket.sendall(message)
-        except (socket.error, AttributeError) as e:
-            self.update_label(f"Connection lost: {e}")
+        # prefix = b'\x08'
+        # # angular_speed_ = ActionTimerAngleDist.n_from_s(angular_speed)
+        # angular_speed_ = angular_speed
+        # data = struct.pack('!Bi', prefix[0], angular_speed_)
+        # message_length = len(data)
+        # length_prefix = struct.pack('!I', message_length)
+        # message = length_prefix + data
+        # try:
+        #     self.client_socket.sendall(message)
+        # except (socket.error, AttributeError) as e:
+        #     self.update_label(f"Connection lost: {e}")
+        payload = struct.pack('!Bi', 0x08, angular_speed)
+        self.send_message(payload)
 
     @Slot(int, int, int)
     def send_rotate_at(self, x, y, angular_speed):
-        prefix = b'\x09'
-        data = struct.pack('!Biii', prefix[0], x, y, angular_speed)
-        message_length = len(data)
-        length_prefix = struct.pack('!I', message_length)
-        message = length_prefix + data
-        try:
-            self.client_socket.sendall(message)
-        except (socket.error, AttributeError) as e:
-            self.update_label(f"Connection lost: {e}")
+        # prefix = b'\x09'
+        # data = struct.pack('!Biii', prefix[0], x, y, angular_speed)
+        # message_length = len(data)
+        # length_prefix = struct.pack('!I', message_length)
+        # message = length_prefix + data
+        # try:
+        #     self.client_socket.sendall(message)
+        # except (socket.error, AttributeError) as e:
+        #     self.update_label(f"Connection lost: {e}")
+        payload = struct.pack('!Biii', 0x09, x, y, angular_speed)
+        self.send_message(payload)
 
     @Slot(str)
     def send_motctrl(self, whattodo):
-        if not self.connected:
-            return
+        # if not self.connected:
+        #     return
+        # if whattodo == "on":
+        #     on = True
+        # elif whattodo == 'off':
+        #     on = False
+        # else:
+        #     print("Illegal motctrl value")
+        #     exit(1)
+        # prefix = b'\x02'  # message signature for motctrl
+        # payload = struct.pack('!B?', prefix[0], on)
+        # length = struct.pack('!I', len(payload))
+        # try:
+        #     self.client_socket.sendall(length + payload)
+        # except socket.error as e:
+        #     self.update_label(f"Connection lost: {e}")
         if whattodo == "on":
             on = True
         elif whattodo == 'off':
             on = False
         else:
-            print("Illegal motctrl value")
-            exit(1)
-        prefix = b'\x02'  # message signature for motctrl
-        payload = struct.pack('!B?', prefix[0], on)
-        length = struct.pack('!I', len(payload))
-        try:
-            self.client_socket.sendall(length + payload)
-        except socket.error as e:
-            self.update_label(f"Connection lost: {e}")
+            self.update_label("Illegal motctrl value")
+            return
+
+        payload = struct.pack('!B?', 0x02, on)
+        self.send_message(payload)
 
     @Slot(str)
     def send_motctrl_f(self, whattodo):
-        if not self.connected:
-            return
+        # if not self.connected:
+        #     return
+        # if whattodo == "on":
+        #     on = True
+        # elif whattodo == 'off':
+        #     on = False
+        # else:
+        #     print("Illegal motctrl value")
+        #     exit(1)
+        # prefix = b'\x05'  # message signature for motctrl_follower
+        # payload = struct.pack('!B?', prefix[0], on)
+        # length = struct.pack('!I', len(payload))
+        # try:
+        #     self.client_socket.sendall(length + payload)
+        # except socket.error as e:
+        #     self.update_label(f"Connection lost: {e}")
         if whattodo == "on":
             on = True
         elif whattodo == 'off':
             on = False
         else:
-            print("Illegal motctrl value")
-            exit(1)
-        prefix = b'\x05'  # message signature for motctrl_follower
-        payload = struct.pack('!B?', prefix[0], on)
-        length = struct.pack('!I', len(payload))
-        try:
-            self.client_socket.sendall(length + payload)
-        except socket.error as e:
-            self.update_label(f"Connection lost: {e}")
+            self.update_label("Illegal motctrl_follower value")
+            return
+
+        payload = struct.pack('!B?', 0x05, on)
+        self.send_message(payload)
 
 
-def connect_to_host(hostname, port):
-    try:
-        # Get all IP addresses associated with the hostname
-        host_info = socket.gethostbyname_ex(hostname)
-        ip_addresses = host_info[2]
-        print(ip_addresses)
-    except socket.gaierror as e:
-        print(f"Error resolving hostname {hostname}: {e}\nTrying default IP-Addresses...")
-        ip_addresses = def_hosts
-
-    for ip in ip_addresses:
-        # try:
-        # Create a socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)  # Set a timeout for the connection attempt
-        try:
-            # Attempt to connect to the IP address
-            sock.connect((ip, port))
-            print(f"Successfully connected to {hostname} ({ip}) on port {port}")
-            return sock  # Return the connected socket
-        except socket.error as e:
-            print(f"Failed to connect to {ip}: {e}")
-            sock.close()
-
-    print(f"Could not connect to any IP addresses for {hostname}")
-    return None
-
-
-def main():
-    hostname = HOSTNAME
-    port = 54000
-    client_socket = connect_to_host(hostname, port)
-
-    if client_socket:
-        app = QApplication(sys.argv)
-        gui = MecanmControl(client_socket)
-        gui.show()
-        app.exec()
-
-        client_socket.close()
-        return 0
-    else:
-        print(f"Could not connect to host {hostname}")
-        return -1
-
-
-if __name__ == '__main__':
-    sys.exit(main())
+# def connect_to_host(hostname, port):
+#     try:
+#         # Get all IP addresses associated with the hostname
+#         host_info = socket.gethostbyname_ex(hostname)
+#         ip_addresses = host_info[2]
+#         print(ip_addresses)
+#     except socket.gaierror as e:
+#         print(f"Error resolving hostname {hostname}: {e}\nTrying default IP-Addresses...")
+#         ip_addresses = def_hosts
+#
+#     for ip in ip_addresses:
+#         # try:
+#         # Create a socket
+#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#         sock.settimeout(1)  # Set a timeout for the connection attempt
+#         try:
+#             # Attempt to connect to the IP address
+#             sock.connect((ip, port))
+#             print(f"Successfully connected to {hostname} ({ip}) on port {port}")
+#             return sock  # Return the connected socket
+#         except socket.error as e:
+#             print(f"Failed to connect to {ip}: {e}")
+#             sock.close()
+#
+#     print(f"Could not connect to any IP addresses for {hostname}")
+#     return None
+#
+#
+# def main():
+#     hostname = HOSTNAME
+#     port = 54000
+#     client_socket = connect_to_host(hostname, port)
+#
+#     if client_socket:
+#         app = QApplication(sys.argv)
+#         gui = MecanmControl(client_socket)
+#         gui.show()
+#         app.exec()
+#
+#         client_socket.close()
+#         return 0
+#     else:
+#         print(f"Could not connect to host {hostname}")
+#         return -1
+#
+#
+# if __name__ == '__main__':
+#     sys.exit(main())

@@ -1,11 +1,12 @@
 import struct
 import sys
-import threading
-import socket
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, \
+# import threading
+# import socket
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, \
     QStatusBar, QMenuBar, QDialog, QDialogButtonBox, QFormLayout, QMessageBox
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QAction
+from PySide6.QtNetwork import QAbstractSocket, QTcpSocket
 import json
 
 from client import MecanmControl
@@ -13,7 +14,7 @@ from ip_or_resolve import is_ip_address, resolve_hostname
 from ssh_connection_widget import SshConnectionWidget
 
 # for ssh to the raspberries
-mecanum1 = "localhost"
+mecanum1 = "myomen.local"
 mecanum1_user = "bernd"
 
 
@@ -23,7 +24,7 @@ class ConnectDialog(QDialog):
 
         self.setWindowTitle("Connect")
 
-        #self.last_ip = "luke.local"  # Default value
+        #self.last_ip = "luke.local" # Default value
         self.last_ip = "luke.local" # "192.168.73.123"
         self.last_port = 54000  # Default value
         self.ip_input = QLineEdit()
@@ -36,7 +37,9 @@ class ConnectDialog(QDialog):
         form_layout.addRow("IP Address:", self.ip_input)
         form_layout.addRow("Port:", self.port_input)
 
-        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box = QDialogButtonBox()
+        self.button_box.addButton(QDialogButtonBox.StandardButton.Ok)
+        self.button_box.addButton(QDialogButtonBox.StandardButton.Cancel)
         self.button_box.accepted.connect(self.accept)
         self.button_box.accepted.connect(self.save_input)
         self.button_box.rejected.connect(self.reject)
@@ -77,7 +80,7 @@ class ConnectDialog(QDialog):
 
     def show_critical_dialog(self, message):
         msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Critical)
+        msg_box.setIcon(QMessageBox.Icon.Critical)
         msg_box.setWindowTitle("Conversion Error")
         msg_box.setText("An error occurred while converting the port number.")
         msg_box.setInformativeText(message)
@@ -136,7 +139,13 @@ class MainWindow(QMainWindow):
         ssh_action.triggered.connect(self.open_ssh_window)
         connection_menu.addAction(ssh_action)
 
-        self.socket = None
+        self.socket = QTcpSocket(self)
+        self.socket.connected.connect(self.on_socket_connected)
+        self.socket.disconnected.connect(self.on_socket_disconnected)
+        self.socket.errorOccurred.connect(self.on_socket_error)
+
+        self.pending_ip_address = None
+        self.pending_port = None
 
         self.client = MecanmControl(self.socket)
         layout.addWidget(self.client)
@@ -145,10 +154,10 @@ class MainWindow(QMainWindow):
     def show_connect_dialog(self):
         def show_error_message(hostname):
             msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Critical)
+            msg_box.setIcon(QMessageBox.Icon.Critical)
             msg_box.setWindowTitle("Error")
             msg_box.setText(f"Host '{hostname}' could not be resolved.")
-            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
             msg_box.exec()
 
         dialog = ConnectDialog(self)
@@ -175,27 +184,53 @@ class MainWindow(QMainWindow):
 
                 self.connect_follower(ip_address, port)
 
+    # def _connect(self, ip_address, port):
+    #     self.status_bar.showMessage(f"Connecting to {ip_address}:{port}...")
+    #
+    #     # Create a socket and connect to the server
+    #     self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #
+    #     try:
+    #         self.socket.connect((ip_address, port))
+    #         # self.socket.setblocking(False)
+    #         self.status_bar.showMessage(f"Connected to {ip_address} at port {port}")
+    #         self.client.client_socket = self.socket
+    #         self.client.connected = True
+    #         self.client.onConnect()
+    #
+    #         # Start threads for receiving and sending data
+    #         #receive_thread = threading.Thread(target=self.receive_data)
+    #         #send_thread = threading.Thread(target=self.send_data)
+    #         #receive_thread.start()
+    #         #send_thread.start()
+    #     except socket.error as e:
+    #         self.status_bar.showMessage(f"Failed to connect: {e}")
+
     def _connect(self, ip_address, port):
+        self.pending_ip_address = ip_address
+        self.pending_port = port
+
         self.status_bar.showMessage(f"Connecting to {ip_address}:{port}...")
+        self.socket.connectToHost(ip_address, port)
 
-        # Create a socket and connect to the server
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    @Slot()
+    def on_socket_connected(self):
+        self.status_bar.showMessage(
+            f"Connected to {self.pending_ip_address} at port {self.pending_port}"
+        )
+        self.client.client_socket = self.socket
+        self.client.connected = True
+        self.client.onConnect()
 
-        try:
-            self.socket.connect((ip_address, port))
-            # self.socket.setblocking(False)
-            self.status_bar.showMessage(f"Connected to {ip_address} at port {port}")
-            self.client.client_socket = self.socket
-            self.client.connected = True
-            self.client.onConnect()
+    @Slot()
+    def on_socket_disconnected(self):
+        self.client.connected = False
+        self.client.onDisconnect()
+        self.status_bar.showMessage("Disconnected")
 
-            # Start threads for receiving and sending data
-            #receive_thread = threading.Thread(target=self.receive_data)
-            #send_thread = threading.Thread(target=self.send_data)
-            #receive_thread.start()
-            #send_thread.start()
-        except socket.error as e:
-            self.status_bar.showMessage(f"Failed to connect: {e}")
+    @Slot(QAbstractSocket.SocketError)
+    def on_socket_error(self, socket_error):
+        self.status_bar.showMessage(f"Connection error: {self.socket.errorString()}")
 
     def connect_follower(self, ip_address, port):
         if self.client.connected:
@@ -204,16 +239,23 @@ class MainWindow(QMainWindow):
             _ip_address = struct.pack(f'!{len(ip_address)}s', ip_address.encode())
             message = code + _port + _ip_address
             length = struct.pack('!I', len(message))
-            self.socket.sendall(length + message)
+            # self.socket.sendall(length + message)
+            self.socket.write(length + message)
+
+    # def _disconnect(self):
+    #     if self.socket:
+    #         self.socket.close()
+    #         self.socket = None
+    #         self.client.client_socket = self.socket
+    #         self.client.connected = False
+    #         self.client.onDisconnect()
+    #         self.status_bar.showMessage("Disconnected")
 
     def _disconnect(self):
-        if self.socket:
-            self.socket.close()
-            self.socket = None
-            self.client.client_socket = self.socket
-            self.client.connected = False
-            self.client.onDisconnect()
-            self.status_bar.showMessage("Disconnected")
+        if self.socket.state() != QAbstractSocket.SocketState.UnconnectedState:
+            self.socket.disconnectFromHost()
+        else:
+            self.status_bar.showMessage("Already disconnected")
 
     def disconnect_follower(self):
 
@@ -222,7 +264,8 @@ class MainWindow(QMainWindow):
             code = b'\x04'
             length = struct.pack('!I', len(code))
             message = length + code
-            self.socket.sendall(message)
+            # self.socket.sendall(message)
+            self.socket.write(message)
 
     def open_ssh_window(self):
         self.ssh_window = SshConnectionWidget(
