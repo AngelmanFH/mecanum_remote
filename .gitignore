@@ -5,3 +5,4 @@ venv
 pack
 myenv/
 valgrind-python.supp
+.DS_Store
