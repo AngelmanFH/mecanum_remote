@@ -1,6 +1,6 @@
 import sys
 
-from PySide6.QtCore import QProcess, QTimer, Slot
+from PySide6.QtCore import QProcess, QTimer, Signal, Slot
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -15,12 +15,17 @@ from PySide6.QtWidgets import (
 
 
 class SshConnectionWidget(QWidget):
+    server_ready = Signal()
+    output_received = Signal(str)
+
     def __init__(self, host="example.com", user=None, port=22, parent=None):
         super().__init__(parent)
 
         self.host = host
         self.user = user
         self.port = port
+        self._stdout_buffer = ""
+        self._stderr_buffer = ""
 
         self.process = QProcess(self)
         self.process.readyReadStandardOutput.connect(self.read_stdout)
@@ -41,18 +46,18 @@ class SshConnectionWidget(QWidget):
         self.input_line.setPlaceholderText("Type command and press Enter")
         self.input_line.returnPressed.connect(self.send_input)
 
-        self.connect_button = QPushButton("Connect")
+        self.connect_button = QPushButton("Connect to Pi")
         self.connect_button.clicked.connect(self.connect_ssh)
 
         self.disconnect_button = QPushButton("Disconnect")
         self.disconnect_button.clicked.connect(self.disconnect_ssh)
         self.disconnect_button.setEnabled(False)
 
-        self.run_test_script_button = QPushButton("Run test script")
+        self.run_test_script_button = QPushButton("Start Mecanum-App on Pi")
         self.run_test_script_button.clicked.connect(self.run_test_script)
         self.run_test_script_button.setEnabled(False)
 
-        self.ctrl_c_button = QPushButton("Ctrl+C")
+        self.ctrl_c_button = QPushButton("Quit Mecanum-App (Ctrl+C)")
         self.ctrl_c_button.clicked.connect(self.send_ctrl_c)
         self.ctrl_c_button.setEnabled(False)
 
@@ -125,7 +130,7 @@ class SshConnectionWidget(QWidget):
 
     @Slot()
     def run_test_script(self):
-        self.run_remote_command("./test.sh")
+        self.run_remote_command("./start_mecanum.sh")
 
     def run_remote_command(self, command):
         if self.process.state() == QProcess.NotRunning:
@@ -153,6 +158,12 @@ class SshConnectionWidget(QWidget):
         self.output.moveCursor(QTextCursor.End)
         self.output.insertPlainText(data)
         self.output.moveCursor(QTextCursor.End)
+        self.output_received.emit(data)
+
+        self._stdout_buffer = (self._stdout_buffer + data)[-4096:]
+        if "CanopenApp object created" in self._stdout_buffer:
+            self._stdout_buffer = ""
+            self.server_ready.emit()
 
     @Slot()
     def read_stderr(self):
@@ -160,6 +171,12 @@ class SshConnectionWidget(QWidget):
         self.output.moveCursor(QTextCursor.End)
         self.output.insertPlainText(data)
         self.output.moveCursor(QTextCursor.End)
+        self.output_received.emit(data)
+
+        self._stderr_buffer = (self._stderr_buffer + data)[-4096:]
+        if "CanopenApp object created" in self._stderr_buffer:
+            self._stderr_buffer = ""
+            self.server_ready.emit()
 
     @Slot()
     def on_started(self):
@@ -167,6 +184,8 @@ class SshConnectionWidget(QWidget):
         self.disconnect_button.setEnabled(True)
         self.run_test_script_button.setEnabled(True)
         self.ctrl_c_button.setEnabled(True)
+        self._stdout_buffer = ""
+        self._stderr_buffer = ""
         self.output.append("SSH process started.")
 
     @Slot(int, QProcess.ExitStatus)
@@ -175,6 +194,8 @@ class SshConnectionWidget(QWidget):
         self.disconnect_button.setEnabled(False)
         self.run_test_script_button.setEnabled(False)
         self.ctrl_c_button.setEnabled(False)
+        self._stdout_buffer = ""
+        self._stderr_buffer = ""
         self.output.append(f"\nSSH process finished with exit code {exit_code}.")
 
     @Slot(QProcess.ProcessError)

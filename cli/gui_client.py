@@ -1,32 +1,42 @@
+import configparser
+import os
 import struct
 import sys
 # import threading
 # import socket
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, \
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, \
     QStatusBar, QMenuBar, QDialog, QDialogButtonBox, QFormLayout, QMessageBox
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QAction
 from PySide6.QtNetwork import QAbstractSocket, QTcpSocket
-import json
 
 from client import MecanmControl
 from ip_or_resolve import is_ip_address, resolve_hostname
 from ssh_connection_widget import SshConnectionWidget
 
 # for ssh to the raspberries
-mecanum1 = "myomen.local"
-mecanum1_user = "bernd"
+mecanum1 = "anakin.local"
+mecanum1_user = "pi"
+
+mecanum2 = "luke.local"
+mecanum2_user = "pi"
+
+CONFIG_FILE = "config.ini"
+HINT_START_SERVER = "start the server first (ssh-window)"
 
 
 class ConnectDialog(QDialog):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, parent=None, section="connection", default_ip="anakin.local", default_port=54000):
+        super().__init__(parent)
+
+        self.section = section
+        self.default_ip = default_ip
+        self.default_port = default_port
 
         self.setWindowTitle("Connect")
 
-        #self.last_ip = "luke.local" # Default value
-        self.last_ip = "luke.local" # "192.168.73.123"
-        self.last_port = 54000  # Default value
+        self.last_ip = self.default_ip
+        self.last_port = self.default_port
         self.ip_input = QLineEdit()
         self.ip_input.setPlaceholderText("Enter IP Address")
 
@@ -55,19 +65,36 @@ class ConnectDialog(QDialog):
         ip_address = self.ip_input.text()
         port = self.port_input.text()
 
-        with open("last_connection.json", "w") as file:
-            json.dump({"ip_address": ip_address, "port": port}, file)
+        config = configparser.ConfigParser()
+        if os.path.exists(CONFIG_FILE):
+            config.read(CONFIG_FILE)
+
+        if not config.has_section(self.section):
+            config.add_section(self.section)
+
+        config.set(self.section, "ip_address", ip_address)
+        config.set(self.section, "port", str(port))
+
+        with open(CONFIG_FILE, "w") as file:
+            config.write(file)
 
     def load_input(self):
-        try:
-            with open("last_connection.json", "r") as file:
-                data = json.load(file)
-                self.ip_input.setText(data.get("ip_address", ""))
-                self.port_input.setText(data.get("port", ""))
-                print(f'data from file: ip_input: {data.get("ip_address", "")}, port: {data.get("port", "")}')
-        except FileNotFoundError as e:
-            print(f"Error: {e}")
-            pass
+        config = configparser.ConfigParser()
+        ip_address = self.default_ip
+        port = str(self.default_port)
+
+        if os.path.exists(CONFIG_FILE):
+            try:
+                config.read(CONFIG_FILE)
+                if config.has_section(self.section):
+                    ip_address = config.get(self.section, "ip_address", fallback=self.default_ip)
+                    port = config.get(self.section, "port", fallback=str(self.default_port))
+            except Exception as e:
+                print(f"Error: {e}")
+
+        self.ip_input.setText(ip_address)
+        self.port_input.setText(str(port))
+        print(f'data from file: ip_input: {ip_address}, port: {port}')
 
     def get_ip_port(self):
         self.last_ip = self.ip_input.text()
@@ -99,7 +126,6 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
 
-        self.ssh_window = None
 
 
         # Create status bar
@@ -115,29 +141,37 @@ class MainWindow(QMainWindow):
         connection_menu = menu_bar.addMenu("Connection")
 
         # Create "Connect" action
-        connect_action = QAction("Connect", self)
-        connect_action.triggered.connect(self.show_connect_dialog)
-        connection_menu.addAction(connect_action)
+        self.connect_action = QAction("Connect", self)
+        self.connect_action.setEnabled(False)
+        self.connect_action.setToolTip(HINT_START_SERVER)
+        self.connect_action.setStatusTip(HINT_START_SERVER)
+        self.connect_action.triggered.connect(self.show_connect_dialog)
+        connection_menu.addAction(self.connect_action)
 
         # Create "Disconnect" action
-        disconnect_action = QAction("Disconnect", self)
-        disconnect_action.triggered.connect(self._disconnect)
-        connection_menu.addAction(disconnect_action)
+        self.disconnect_action = QAction("Disconnect", self)
+        self.disconnect_action.setEnabled(False)
+        self.disconnect_action.setToolTip(HINT_START_SERVER)
+        self.disconnect_action.setStatusTip(HINT_START_SERVER)
+        self.disconnect_action.triggered.connect(self._disconnect)
+        connection_menu.addAction(self.disconnect_action)
 
-        # Create "Connect" action
-        connect_follower_action = QAction("Connect Follower", self)
-        connect_follower_action.triggered.connect(self.show_follower_connect_dialog)
-        connection_menu.addAction(connect_follower_action)
+        # Create "Connect Follower" action
+        self.connect_follower_action = QAction("Connect Follower", self)
+        self.connect_follower_action.setEnabled(False)
+        self.connect_follower_action.setToolTip(HINT_START_SERVER)
+        self.connect_follower_action.setStatusTip(HINT_START_SERVER)
+        self.connect_follower_action.triggered.connect(self.show_follower_connect_dialog)
+        connection_menu.addAction(self.connect_follower_action)
 
-        # Create "Disconnect" action
-        disconnect_follower_action = QAction("Disconnect Follower", self)
-        disconnect_follower_action.triggered.connect(self.disconnect_follower)
-        connection_menu.addAction(disconnect_follower_action)
+        # Create "Disconnect Follower" action
+        self.disconnect_follower_action = QAction("Disconnect Follower", self)
+        self.disconnect_follower_action.setEnabled(False)
+        self.disconnect_follower_action.setToolTip(HINT_START_SERVER)
+        self.disconnect_follower_action.setStatusTip(HINT_START_SERVER)
+        self.disconnect_follower_action.triggered.connect(self.disconnect_follower)
+        connection_menu.addAction(self.disconnect_follower_action)
 
-        # Create "SSH Connection" action
-        ssh_action = QAction("Open SSH Window", self)
-        ssh_action.triggered.connect(self.open_ssh_window)
-        connection_menu.addAction(ssh_action)
 
         self.socket = QTcpSocket(self)
         self.socket.connected.connect(self.on_socket_connected)
@@ -146,9 +180,65 @@ class MainWindow(QMainWindow):
 
         self.pending_ip_address = None
         self.pending_port = None
+        self.primary_server_ready = False
+        self.follower_server_ready = False
+        self.follower_connected = False
 
         self.client = MecanmControl(self.socket)
         layout.addWidget(self.client)
+
+        ssh_layout = QHBoxLayout()
+        self.ssh_widget_1 = SshConnectionWidget(
+            host=mecanum1,
+            user=mecanum1_user,
+            port=22,
+        )
+        self.ssh_widget_2 = SshConnectionWidget(
+            host=mecanum2,
+            user=mecanum2_user,
+            port=22,
+        )
+        self.ssh_widget_1.server_ready.connect(self.on_server_ready_primary)
+        self.ssh_widget_2.server_ready.connect(self.on_server_ready_follower)
+        self.ssh_widget_1.process.finished.connect(self.on_ssh_1_finished)
+        self.ssh_widget_2.process.finished.connect(self.on_ssh_2_finished)
+        ssh_layout.addWidget(self.ssh_widget_1)
+        ssh_layout.addWidget(self.ssh_widget_2)
+        layout.addLayout(ssh_layout)
+
+    @Slot()
+    def on_server_ready_primary(self):
+        self.primary_server_ready = True
+        if not self.client.connected:
+            self.connect_action.setEnabled(True)
+            self.connect_action.setToolTip("")
+            self.connect_action.setStatusTip("")
+        self.status_bar.showMessage("Primary server ready on mecanum1 (anakin.local)")
+
+    @Slot()
+    def on_server_ready_follower(self):
+        self.follower_server_ready = True
+        if not self.follower_connected:
+            self.connect_follower_action.setEnabled(True)
+            self.connect_follower_action.setToolTip("")
+            self.connect_follower_action.setStatusTip("")
+        self.status_bar.showMessage("Follower server ready on mecanum2 (luke.local)")
+
+    @Slot()
+    def on_ssh_1_finished(self):
+        self.primary_server_ready = False
+        if not self.client.connected:
+            self.connect_action.setEnabled(False)
+            self.connect_action.setToolTip(HINT_START_SERVER)
+            self.connect_action.setStatusTip(HINT_START_SERVER)
+
+    @Slot()
+    def on_ssh_2_finished(self):
+        self.follower_server_ready = False
+        if not self.follower_connected:
+            self.connect_follower_action.setEnabled(False)
+            self.connect_follower_action.setToolTip(HINT_START_SERVER)
+            self.connect_follower_action.setStatusTip(HINT_START_SERVER)
 
     @Slot()
     def show_connect_dialog(self):
@@ -160,7 +250,8 @@ class MainWindow(QMainWindow):
             msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
             msg_box.exec()
 
-        dialog = ConnectDialog(self)
+        dialog = ConnectDialog(parent=self, section="connection", default_ip="anakin.local", default_port=54000)
+        dialog.setWindowTitle("Connect")
         if dialog.exec():
             host_or_ip_address, port = dialog.get_ip_port()
             if not is_ip_address(host_or_ip_address):
@@ -175,10 +266,8 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_follower_connect_dialog(self):
         if self.client.connected:
-            dialog = ConnectDialog()
+            dialog = ConnectDialog(parent=self, section="follower", default_ip="luke.local", default_port=53999)
             dialog.setWindowTitle("Connect Follower")
-            dialog.ip_input.setText("anakin.local")  # Default value
-            dialog.port_input.setText("53999")  # Default value
             if dialog.exec():
                 ip_address, port = dialog.get_ip_port()
 
@@ -218,6 +307,10 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage(
             f"Connected to {self.pending_ip_address} at port {self.pending_port}"
         )
+        self.connect_action.setEnabled(False)
+        self.disconnect_action.setEnabled(True)
+        self.disconnect_action.setToolTip("")
+        self.disconnect_action.setStatusTip("")
         self.client.client_socket = self.socket
         self.client.connected = True
         self.client.onConnect()
@@ -226,6 +319,29 @@ class MainWindow(QMainWindow):
     def on_socket_disconnected(self):
         self.client.connected = False
         self.client.onDisconnect()
+        self.follower_connected = False
+        self.disconnect_action.setEnabled(False)
+        self.disconnect_action.setToolTip(HINT_START_SERVER)
+        self.disconnect_action.setStatusTip(HINT_START_SERVER)
+        self.disconnect_follower_action.setEnabled(False)
+        self.disconnect_follower_action.setToolTip(HINT_START_SERVER)
+        self.disconnect_follower_action.setStatusTip(HINT_START_SERVER)
+        if self.primary_server_ready:
+            self.connect_action.setEnabled(True)
+            self.connect_action.setToolTip("")
+            self.connect_action.setStatusTip("")
+        else:
+            self.connect_action.setEnabled(False)
+            self.connect_action.setToolTip(HINT_START_SERVER)
+            self.connect_action.setStatusTip(HINT_START_SERVER)
+        if self.follower_server_ready:
+            self.connect_follower_action.setEnabled(True)
+            self.connect_follower_action.setToolTip("")
+            self.connect_follower_action.setStatusTip("")
+        else:
+            self.connect_follower_action.setEnabled(False)
+            self.connect_follower_action.setToolTip(HINT_START_SERVER)
+            self.connect_follower_action.setStatusTip(HINT_START_SERVER)
         self.status_bar.showMessage("Disconnected")
 
     @Slot(QAbstractSocket.SocketError)
@@ -241,6 +357,11 @@ class MainWindow(QMainWindow):
             length = struct.pack('!I', len(message))
             # self.socket.sendall(length + message)
             self.socket.write(length + message)
+            self.follower_connected = True
+            self.connect_follower_action.setEnabled(False)
+            self.disconnect_follower_action.setEnabled(True)
+            self.disconnect_follower_action.setToolTip("")
+            self.disconnect_follower_action.setStatusTip("")
 
     # def _disconnect(self):
     #     if self.socket:
@@ -266,14 +387,19 @@ class MainWindow(QMainWindow):
             message = length + code
             # self.socket.sendall(message)
             self.socket.write(message)
+            self.follower_connected = False
+            self.disconnect_follower_action.setEnabled(False)
+            self.disconnect_follower_action.setToolTip(HINT_START_SERVER)
+            self.disconnect_follower_action.setStatusTip(HINT_START_SERVER)
+            if self.follower_server_ready:
+                self.connect_follower_action.setEnabled(True)
+                self.connect_follower_action.setToolTip("")
+                self.connect_follower_action.setStatusTip("")
+            else:
+                self.connect_follower_action.setEnabled(False)
+                self.connect_follower_action.setToolTip(HINT_START_SERVER)
+                self.connect_follower_action.setStatusTip(HINT_START_SERVER)
 
-    def open_ssh_window(self):
-        self.ssh_window = SshConnectionWidget(
-            host=mecanum1,
-            user=mecanum1_user,
-            port=22,
-        )
-        self.ssh_window.show()
 
     # def receive_data(self):
     #     print("Started receiving data")
