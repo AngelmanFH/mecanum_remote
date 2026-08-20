@@ -6,7 +6,7 @@ import sys
 # import socket
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, \
     QStatusBar, QMenuBar, QDialog, QDialogButtonBox, QFormLayout, QMessageBox
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, Qt
 from PySide6.QtGui import QAction
 from PySide6.QtNetwork import QAbstractSocket, QTcpSocket
 
@@ -425,6 +425,7 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.styleHints().setColorScheme(Qt.ColorScheme.Light)
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
