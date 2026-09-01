@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-key_path = Path.home() / ".ssh" / "id_ed25519"
+home = Path.home() 
 
 from PySide6.QtCore import QProcess, QTimer, Signal, Slot
 from PySide6.QtGui import QTextCursor
@@ -94,7 +94,7 @@ class SshConnectionWidget(QWidget):
             "-o",
             "IdentitiesOnly=yes",
             "-i",
-            key_path,
+            f"key_path{home}/.ssh/id_ed25519",
             "-p",
             str(self.port),
             target,
