@@ -92,7 +92,7 @@ class SshConnectionWidget(QWidget):
             "-o",
             "IdentitiesOnly=yes",
             "-i",
-            "/Users/bernd/.ssh/id_ed25519",
+            "%USERPROFILE%\.ssh\id_ed25519",
             "-p",
             str(self.port),
             target,
